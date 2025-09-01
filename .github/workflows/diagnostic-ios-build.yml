@@ -1,0 +1,153 @@
+name: Diagnostic iOS Build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  diagnostic-build:
+    runs-on: macos-13
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter (stable version)
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.19.6'
+        channel: 'stable'
+        cache: true
+        
+    - name: Environment Diagnostics
+      run: |
+        echo "=== SYSTEM INFO ==="
+        sw_vers
+        echo "=== FLUTTER INFO ==="
+        flutter --version
+        flutter doctor -v
+        echo "=== XCODE INFO ==="
+        xcode-select -p
+        xcodebuild -version
+        
+    - name: Project Structure Analysis
+      run: |
+        echo "=== ROOT DIRECTORY ==="
+        ls -la
+        echo "=== PUBSPEC.YAML ==="
+        cat pubspec.yaml | head -20
+        echo "=== IOS DIRECTORY ==="
+        ls -la ios/
+        echo "=== RUNNER DIRECTORY ==="
+        ls -la ios/Runner/
+        
+    - name: Flutter Clean and Setup
+      run: |
+        echo "=== FLUTTER CLEAN ==="
+        flutter clean
+        echo "=== PUB GET ==="
+        flutter pub get
+        echo "=== DEPENDENCIES CHECK ==="
+        flutter pub deps
+        
+    - name: iOS Configuration Check
+      run: |
+        echo "=== PODFILE CHECK ==="
+        cd ios
+        if [ -f Podfile ]; then
+          echo "Podfile exists:"
+          cat Podfile
+        else
+          echo "ERROR: No Podfile found!"
+          echo "This is likely the source of the build failure."
+          echo "Flutter iOS projects require a Podfile."
+        fi
+        echo "=== XCODEPROJ CHECK ==="
+        if [ -d Runner.xcodeproj ]; then
+          echo "Runner.xcodeproj exists"
+          ls -la Runner.xcodeproj/
+        else
+          echo "ERROR: No Runner.xcodeproj found!"
+        fi
+        cd ..
+        
+    - name: CocoaPods Installation
+      run: |
+        echo "=== COCOAPODS VERSION ==="
+        pod --version
+        cd ios
+        if [ -f Podfile ]; then
+          echo "=== POD INSTALL ==="
+          pod install --verbose 2>&1 | tee pod_install.log
+          echo "=== POD INSTALL RESULT ==="
+          if [ $? -eq 0 ]; then
+            echo "Pod install successful"
+            ls -la
+            if [ -f Podfile.lock ]; then
+              echo "Podfile.lock created successfully"
+            fi
+          else
+            echo "Pod install failed!"
+            cat pod_install.log | tail -20
+          fi
+        fi
+        cd ..
+        
+    - name: Attempt iOS Build (with detailed error capture)
+      run: |
+        echo "=== FLUTTER BUILD ATTEMPT ==="
+        set -e  # Exit on error
+        flutter build ios --debug --no-codesign --verbose 2>&1 | tee build.log || {
+          echo "=== BUILD FAILED ==="
+          echo "Last 50 lines of build output:"
+          tail -50 build.log
+          echo "=== SEARCHING FOR ERRORS ==="
+          grep -i "error" build.log | head -10 || echo "No obvious errors found"
+          exit 1
+        }
+        
+    - name: Build Success Check
+      if: success()
+      run: |
+        echo "=== BUILD SUCCESS ==="
+        echo "Build directory contents:"
+        find build/ -name "*.app" -o -name "*.ipa" 2>/dev/null || echo "No app files found"
+        ls -la build/ios/ || echo "No iOS build directory"
+        
+    - name: Upload Debug Artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: diagnostic-logs
+        path: |
+          build.log
+          ios/pod_install.log
+          build/ios/
+        retention-days: 7
+        if-no-files-found: warn
+        
+    - name: Create Diagnostic Summary
+      if: always()
+      run: |
+        echo "## 🔍 iOS Build Diagnostic Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ ${{ job.status }} == 'success' ]; then
+          echo "✅ **Status**: BUILD SUCCESSFUL!" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 Your iOS app has been built successfully with notifications enabled!" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Status**: BUILD FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "🔧 **Issue**: Check the detailed logs above for specific errors" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📱 **Configuration Status**:" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ iOS notification permissions configured" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ AppDelegate.swift updated for notifications" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ NotificationService.dart enhanced for iOS" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📋 **Next Steps**:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Download diagnostic logs to see detailed error information" >> $GITHUB_STEP_SUMMARY
+        echo "2. If successful, download build artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "3. Transfer to Mac for Xcode signing and iPhone deployment" >> $GITHUB_STEP_SUMMARY

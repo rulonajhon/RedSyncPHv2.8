@@ -1,0 +1,103 @@
+name: Build iOS App
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-13  # Use stable macOS version
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.22.0'  # Use proven stable version
+        channel: 'stable'
+        cache: true
+        
+    - name: Print Flutter info
+      run: |
+        flutter --version
+        flutter doctor -v
+        
+    - name: Clean Flutter
+      run: flutter clean
+      
+    - name: Get Flutter dependencies
+      run: flutter pub get
+      
+    - name: Check for iOS directory
+      run: |
+        ls -la
+        ls -la ios/
+        
+    - name: Setup Xcode
+      run: |
+        sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+        xcodebuild -version
+        
+    - name: Setup iOS dependencies (with error handling)
+      run: |
+        cd ios
+        echo "Current directory: $(pwd)"
+        echo "Podfile exists: $(test -f Podfile && echo 'YES' || echo 'NO')"
+        if [ -f Podfile ]; then
+          pod --version
+          pod repo update --silent
+          pod install --repo-update --verbose
+        else
+          echo "No Podfile found, skipping pod install"
+        fi
+        cd ..
+        
+    - name: Analyze Flutter project
+      run: flutter analyze --no-fatal-infos
+      continue-on-error: true
+      
+    - name: Build iOS (Debug - more forgiving)
+      run: |
+        flutter build ios --debug --no-codesign --verbose
+        
+    - name: List build outputs
+      run: |
+        ls -la build/
+        ls -la build/ios/ || echo "No iOS build directory"
+        ls -la build/ios/iphoneos/ || echo "No iphoneos directory"
+        
+    - name: Archive build artifacts (if they exist)
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: ios-build-artifacts
+        path: |
+          build/ios/
+          ios/Podfile.lock
+        retention-days: 30
+        if-no-files-found: warn
+        
+    - name: Create detailed build summary
+      if: always()
+      run: |
+        echo "## iOS Build Attempt Summary" >> $GITHUB_STEP_SUMMARY
+        echo "🍎 Platform: macOS with Xcode" >> $GITHUB_STEP_SUMMARY
+        echo "📱 Flutter Version: $(flutter --version | head -1)" >> $GITHUB_STEP_SUMMARY
+        echo "� Build Type: Debug (no code signing)" >> $GITHUB_STEP_SUMMARY
+        
+        if [ ${{ job.status }} == 'success' ]; then
+          echo "✅ Build Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Build Status: FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Check the build logs above for specific errors" >> $GITHUB_STEP_SUMMARY
+        echo "2. If successful, download artifacts to transfer to Mac" >> $GITHUB_STEP_SUMMARY
+        echo "3. For deployment, use Xcode on Mac with proper signing" >> $GITHUB_STEP_SUMMARY
