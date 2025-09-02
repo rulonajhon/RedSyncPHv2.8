@@ -94,7 +94,8 @@ class _AdminSettingsState extends State<AdminSettings> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-      Navigator.pushReplacementNamed(context, '/authentication');
+      Navigator.pushNamedAndRemoveUntil(
+          context, '/authentication', (route) => false);
     }
   }
 

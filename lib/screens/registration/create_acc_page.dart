@@ -16,7 +16,8 @@ class _CreateAccPageState extends State<CreateAccPage> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
   bool _isLoading = false;
   bool _showRoleSelection = false;
@@ -76,7 +77,7 @@ class _CreateAccPageState extends State<CreateAccPage> {
   void _selectRole(String role) async {
     if (_createdUid == null) return;
     setState(() => _isLoading = true);
-    
+
     // For medical professionals, add verification status and expiry date
     Map<String, dynamic>? extraData;
     if (role == 'medical') {
@@ -88,23 +89,26 @@ class _CreateAccPageState extends State<CreateAccPage> {
         'verificationStatus': 'pending', // pending, approved, rejected
       };
     }
-    
+
     await FirestoreService().updateUser(
-      _createdUid!, 
-      _nameController.text.trim(), 
-      _emailController.text.trim(), 
+      _createdUid!,
+      _nameController.text.trim(),
+      _emailController.text.trim(),
       role,
       extra: extraData,
     );
     setState(() => _isLoading = false);
 
-    // Navigate to appropriate screen
+    // Navigate to appropriate screen and clear navigation stack
     if (role == 'medical') {
-      Navigator.pushReplacementNamed(context, '/healthcare_main');
+      Navigator.pushNamedAndRemoveUntil(
+          context, '/healthcare_main', (route) => false);
     } else if (role == 'caregiver') {
-      Navigator.pushReplacementNamed(context, '/caregiver_main');
+      Navigator.pushNamedAndRemoveUntil(
+          context, '/caregiver_main', (route) => false);
     } else {
-      Navigator.pushReplacementNamed(context, '/user_screen');
+      Navigator.pushNamedAndRemoveUntil(
+          context, '/user_screen', (route) => false);
     }
   }
 
@@ -125,7 +129,8 @@ class _CreateAccPageState extends State<CreateAccPage> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 16.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 28.0, vertical: 16.0),
             child: !_showRoleSelection
                 ? Form(
                     key: _formKey,
@@ -133,7 +138,8 @@ class _CreateAccPageState extends State<CreateAccPage> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         const SizedBox(height: 12),
-                        Image.asset('assets/images/app_logo.png', width: 80, height: 80),
+                        Image.asset('assets/images/app_logo.png',
+                            width: 80, height: 80),
                         const SizedBox(height: 18),
                         const Text(
                           'Create Account',
@@ -160,8 +166,9 @@ class _CreateAccPageState extends State<CreateAccPage> {
                           label: 'Full Name',
                           icon: Icons.person_outline,
                           keyboardType: TextInputType.name,
-                          validator: (value) =>
-                              value == null || value.isEmpty ? 'Enter name' : null,
+                          validator: (value) => value == null || value.isEmpty
+                              ? 'Enter name'
+                              : null,
                         ),
                         const SizedBox(height: 18),
                         _buildInputField(
@@ -170,8 +177,10 @@ class _CreateAccPageState extends State<CreateAccPage> {
                           icon: Icons.email_outlined,
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) {
-                            if (value == null || value.isEmpty) return 'Enter email';
-                            if (!value.contains('@')) return 'Enter valid email';
+                            if (value == null || value.isEmpty)
+                              return 'Enter email';
+                            if (!value.contains('@'))
+                              return 'Enter valid email';
                             return null;
                           },
                         ),
@@ -181,14 +190,17 @@ class _CreateAccPageState extends State<CreateAccPage> {
                           label: 'Password',
                           icon: Icons.lock_outline,
                           obscureText: _obscurePassword,
-                          suffixIcon: _buildPasswordToggleIcon(_obscurePassword, () {
+                          suffixIcon:
+                              _buildPasswordToggleIcon(_obscurePassword, () {
                             setState(() {
                               _obscurePassword = !_obscurePassword;
                             });
                           }),
                           validator: (value) {
-                            if (value == null || value.isEmpty) return 'Enter password';
-                            if (value.length < 6) return 'Password must be at least 6 characters';
+                            if (value == null || value.isEmpty)
+                              return 'Enter password';
+                            if (value.length < 6)
+                              return 'Password must be at least 6 characters';
                             return null;
                           },
                         ),
@@ -198,14 +210,18 @@ class _CreateAccPageState extends State<CreateAccPage> {
                           label: 'Confirm Password',
                           icon: Icons.lock_outline,
                           obscureText: _obscureConfirmPassword,
-                          suffixIcon: _buildPasswordToggleIcon(_obscureConfirmPassword, () {
+                          suffixIcon: _buildPasswordToggleIcon(
+                              _obscureConfirmPassword, () {
                             setState(() {
-                              _obscureConfirmPassword = !_obscureConfirmPassword;
+                              _obscureConfirmPassword =
+                                  !_obscureConfirmPassword;
                             });
                           }),
                           validator: (value) {
-                            if (value == null || value.isEmpty) return 'Confirm your password';
-                            if (value != _passwordController.text) return 'Passwords do not match';
+                            if (value == null || value.isEmpty)
+                              return 'Confirm your password';
+                            if (value != _passwordController.text)
+                              return 'Passwords do not match';
                             return null;
                           },
                         ),
@@ -227,7 +243,8 @@ class _CreateAccPageState extends State<CreateAccPage> {
                                 ? const SizedBox(
                                     height: 22,
                                     width: 22,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2),
                                   )
                                 : const Text(
                                     'Register',
@@ -244,11 +261,13 @@ class _CreateAccPageState extends State<CreateAccPage> {
                           children: [
                             const Text(
                               'Already have an account?',
-                              style: TextStyle(color: Colors.black87, fontSize: 14),
+                              style: TextStyle(
+                                  color: Colors.black87, fontSize: 14),
                             ),
                             TextButton(
                               onPressed: () {
-                                Navigator.pushReplacementNamed(context, '/login');
+                                Navigator.pushReplacementNamed(
+                                    context, '/login');
                               },
                               style: TextButton.styleFrom(
                                 foregroundColor: Colors.redAccent,
@@ -256,7 +275,8 @@ class _CreateAccPageState extends State<CreateAccPage> {
                               ),
                               child: const Text(
                                 'Login',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                             ),
                           ],
@@ -296,7 +316,8 @@ class _CreateAccPageState extends State<CreateAccPage> {
                       _roleTile(
                         icon: FontAwesomeIcons.userDoctor,
                         title: 'I\'m a Medical Professional',
-                        subtitle: 'I want to track patients who have hemophilia',
+                        subtitle:
+                            'I want to track patients who have hemophilia',
                         color: Colors.blueAccent,
                         onTap: () => _selectRole('medical'),
                       ),
@@ -352,7 +373,8 @@ class _CreateAccPageState extends State<CreateAccPage> {
       leading: Icon(icon, size: 32, color: color),
       title: Text(
         title,
-        style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 17),
+        style:
+            TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 17),
       ),
       subtitle: Text(
         subtitle,

@@ -422,9 +422,10 @@ class _AuthenticationLandingScreenState
                                   Navigator.pop(
                                     context,
                                   ); // Close loading dialog
-                                  Navigator.pushReplacementNamed(
+                                  Navigator.pushNamedAndRemoveUntil(
                                     context,
                                     '/user_screen',
+                                    (route) => false,
                                   );
                                 }
                               }

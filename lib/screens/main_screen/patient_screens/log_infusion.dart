@@ -129,17 +129,377 @@ class _LogInfusionScreenState extends State<LogInfusionScreen> {
     }
   }
 
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        title: const Text(
+          'Log Infusion',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            const OfflineIndicator(),
+
+            // Header Section
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Colors.deepPurple,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(24),
+                  bottomRight: Radius.circular(24),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.medical_services,
+                        color: Colors.white, size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Record your infusion',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          'Track your medication intake accurately',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Form Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      _buildCustomDropdown(
+                        value: _selectedMedicationType.isEmpty
+                            ? null
+                            : _selectedMedicationType,
+                        items: _medicationTypes,
+                        label: 'Medication Type',
+                        icon: Icons.medication_liquid,
+                        hintText: 'Select medication type',
+                        onChanged: (value) {
+                          setState(() => _selectedMedicationType = value ?? '');
+                          if (value == 'Other') {
+                            _medicationController.clear();
+                          } else if (value != null) {
+                            _medicationController.text = value;
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      _buildCustomInput(
+                        controller: _medicationController,
+                        label: 'Medication Name',
+                        icon: Icons.medical_services_outlined,
+                        hintText: 'Enter specific medication name',
+                        validator: (v) => v == null || v.isEmpty
+                            ? 'Enter medication name'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      _buildCustomInput(
+                        controller: _doseController,
+                        label: 'Dose (IU)',
+                        icon: Icons.colorize,
+                        hintText: 'Enter dose amount',
+                        keyboardType: TextInputType.number,
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Enter dose amount' : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      _buildDateTimeSelector(),
+                      const SizedBox(height: 16),
+
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: TextFormField(
+                          controller: _notesController,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            labelText: 'Additional Notes (Optional)',
+                            hintText:
+                                'Any special notes about this infusion...',
+                            hintStyle: TextStyle(color: Colors.grey.shade500),
+                            prefixIcon: const Icon(
+                              Icons.note_outlined,
+                              color: Colors.deepPurple,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.all(16),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      // Save Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton.icon(
+                          onPressed: _isSaving ? null : _saveInfusion,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          icon: _isSaving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.save, size: 20),
+                          label: Text(
+                            _isSaving ? 'Saving Infusion...' : 'Save Infusion',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomInput({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required String hintText,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        validator: validator,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hintText,
+          labelStyle: TextStyle(color: Colors.grey.shade600),
+          hintStyle: TextStyle(color: Colors.grey.shade400),
+          prefixIcon: Icon(icon, color: Colors.deepPurple),
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomDropdown({
+    required String? value,
+    required List<String> items,
+    required String label,
+    required IconData icon,
+    required String hintText,
+    required Function(String?) onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        items: items
+            .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+            .toList(),
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hintText,
+          labelStyle: TextStyle(color: Colors.grey.shade600),
+          hintStyle: TextStyle(color: Colors.grey.shade400),
+          prefixIcon: Icon(icon, color: Colors.deepPurple),
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateTimeSelector() {
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: _pickDate,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_today, color: Colors.deepPurple),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Date',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _selectedDate != null
+                                ? DateFormat('MMM dd, yyyy')
+                                    .format(_selectedDate!)
+                                : 'Select date',
+                            style: TextStyle(
+                              color: _selectedDate != null
+                                  ? Colors.black87
+                                  : Colors.grey.shade400,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: GestureDetector(
+            onTap: _pickTime,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.access_time, color: Colors.deepPurple),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Time',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _selectedTime != null
+                                ? _selectedTime!.format(context)
+                                : 'Select time',
+                            style: TextStyle(
+                              color: _selectedTime != null
+                                  ? Colors.black87
+                                  : Colors.grey.shade400,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Colors.redAccent,
+              primary: Colors.deepPurple,
               onPrimary: Colors.white,
             ),
           ),
@@ -158,7 +518,7 @@ class _LogInfusionScreenState extends State<LogInfusionScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Colors.redAccent,
+              primary: Colors.deepPurple,
               onPrimary: Colors.white,
             ),
           ),
@@ -167,329 +527,5 @@ class _LogInfusionScreenState extends State<LogInfusionScreen> {
       },
     );
     if (picked != null) setState(() => _selectedTime = picked);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text(
-          'Log Infusion',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-          ),
-        ),
-        foregroundColor: Colors.white,
-        backgroundColor: Colors.purple,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          const OfflineIndicator(),
-          Expanded(
-            child: SafeArea(
-              child: SingleChildScrollView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header
-                      const Text(
-                        'Record Infusion',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Keep track of your medication intake',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Medication Type
-                      _buildInputLabel('Medication Type'),
-                      const SizedBox(height: 8),
-                      _buildMedicationSelector(),
-
-                      const SizedBox(height: 24),
-
-                      // Specific Medication Name
-                      _buildInputLabel('Medication Name'),
-                      const SizedBox(height: 8),
-                      _buildCleanInput(
-                        controller: _medicationController,
-                        hintText: 'Enter specific medication name',
-                        validator: (v) => v == null || v.isEmpty
-                            ? 'Enter medication name'
-                            : null,
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Dose
-                      _buildInputLabel('Dose (IU)'),
-                      const SizedBox(height: 8),
-                      _buildCleanInput(
-                        controller: _doseController,
-                        hintText: 'Enter dose amount',
-                        keyboardType: TextInputType.number,
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Enter dose amount' : null,
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Date & Time Row
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildInputLabel('Date'),
-                                const SizedBox(height: 8),
-                                _buildDateTimeSelector(
-                                  value: _selectedDate != null
-                                      ? DateFormat('MMM dd, yyyy')
-                                          .format(_selectedDate!)
-                                      : 'Select date',
-                                  icon: Icons.calendar_today_outlined,
-                                  onTap: _pickDate,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildInputLabel('Time'),
-                                const SizedBox(height: 8),
-                                _buildDateTimeSelector(
-                                  value: _selectedTime != null
-                                      ? _selectedTime!.format(context)
-                                      : 'Select time',
-                                  icon: Icons.access_time_outlined,
-                                  onTap: _pickTime,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Notes
-                      _buildInputLabel('Notes (Optional)'),
-                      const SizedBox(height: 8),
-                      _buildNotesInput(),
-
-                      const SizedBox(height: 25),
-
-                      // Save Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _isSaving ? null : _saveInfusion,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.purple,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            disabledBackgroundColor: Colors.grey.shade300,
-                          ),
-                          child: _isSaving
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text(
-                                  'Save Infusion',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInputLabel(String label) {
-    return Text(
-      label,
-      style: const TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-        color: Colors.black87,
-      ),
-    );
-  }
-
-  Widget _buildMedicationSelector() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: DropdownButtonFormField<String>(
-        value: _selectedMedicationType.isEmpty ? null : _selectedMedicationType,
-        decoration: InputDecoration(
-          hintText: 'Select medication type',
-          hintStyle: TextStyle(
-            color: Colors.grey.shade500,
-            fontSize: 15,
-          ),
-          border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        ),
-        dropdownColor: Colors.white,
-        items: _medicationTypes.map((type) {
-          return DropdownMenuItem<String>(
-            value: type,
-            child: Text(
-              type,
-              style: const TextStyle(fontSize: 15),
-            ),
-          );
-        }).toList(),
-        onChanged: (value) {
-          setState(() => _selectedMedicationType = value ?? '');
-          if (value == 'Other') {
-            _medicationController.clear();
-          } else if (value != null) {
-            _medicationController.text = value;
-          }
-        },
-      ),
-    );
-  }
-
-  Widget _buildCleanInput({
-    required TextEditingController controller,
-    required String hintText,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        validator: validator,
-        style: const TextStyle(fontSize: 15),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(
-            color: Colors.grey.shade500,
-            fontSize: 15,
-          ),
-          border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDateTimeSelector({
-    required String value,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: Colors.grey.shade600,
-              size: 20,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: value.contains('Select')
-                      ? Colors.grey.shade500
-                      : Colors.black87,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNotesInput() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: TextFormField(
-        controller: _notesController,
-        maxLines: 4,
-        style: const TextStyle(fontSize: 15),
-        decoration: InputDecoration(
-          hintText: 'Any additional notes about this infusion...',
-          hintStyle: TextStyle(
-            color: Colors.grey.shade500,
-            fontSize: 15,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.all(16),
-        ),
-      ),
-    );
   }
 }

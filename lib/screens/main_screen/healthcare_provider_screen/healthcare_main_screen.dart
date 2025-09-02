@@ -31,22 +31,98 @@ class _HealthcareMainScreenState extends State<HealthcareMainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _screens[_currentIndex],
-      bottomNavigationBar: AnimatedBottomNavigationBar(
-        icons: iconList,
-        activeIndex: _currentIndex,
-        notchSmoothness: NotchSmoothness.softEdge,
-        activeColor: Colors.redAccent,
-        inactiveColor: Colors.blueGrey,
-        gapLocation: GapLocation.none,
-        leftCornerRadius: 0,
-        rightCornerRadius: 0,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+
+        final shouldExit = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.exit_to_app,
+                    color: Colors.redAccent,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Exit App',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            content: const Text(
+              'Are you sure you want to exit the app?',
+              style: TextStyle(fontSize: 16),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Exit',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldExit == true && context.mounted) {
+          // Exit the app
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        body: _screens[_currentIndex],
+        bottomNavigationBar: AnimatedBottomNavigationBar(
+          icons: iconList,
+          activeIndex: _currentIndex,
+          notchSmoothness: NotchSmoothness.softEdge,
+          activeColor: Colors.redAccent,
+          inactiveColor: Colors.blueGrey,
+          gapLocation: GapLocation.none,
+          leftCornerRadius: 0,
+          rightCornerRadius: 0,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+        ),
       ),
     );
   }

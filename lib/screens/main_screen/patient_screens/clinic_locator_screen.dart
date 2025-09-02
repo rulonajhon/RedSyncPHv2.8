@@ -3,6 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../services/directions_service.dart';
+import '../../../utils/connectivity_helper.dart';
 
 class ClinicLocatorScreen extends StatefulWidget {
   const ClinicLocatorScreen({super.key});
@@ -547,6 +548,13 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
   }
 
   void _createRouteToLocation(Map<String, dynamic> location) async {
+    // Check connectivity first
+    final isOnline = await ConnectivityHelper.isOnline();
+    if (!isOnline) {
+      ConnectivityHelper.showOfflineSnackBar(context);
+      return;
+    }
+
     // Close the bottom sheet/modal first
     if (Navigator.canPop(context)) {
       Navigator.pop(context);

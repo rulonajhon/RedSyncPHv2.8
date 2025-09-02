@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hemophilia_manager/models/online/chat_message.dart';
 import 'package:hemophilia_manager/services/openai_service.dart';
 import 'package:hemophilia_manager/widgets/offline_indicator.dart';
+import 'package:hemophilia_manager/utils/connectivity_helper.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -224,6 +225,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   void _sendMessage() async {
     if (_textController.text.trim().isEmpty) return;
+
+    // Check connectivity first
+    final isOnline = await ConnectivityHelper.isOnline();
+    if (!isOnline) {
+      ConnectivityHelper.showOfflineSnackBar(context);
+      return;
+    }
 
     // Check if user is a guest
     final isGuest = await _isGuestUser();

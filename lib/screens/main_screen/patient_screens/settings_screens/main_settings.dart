@@ -81,7 +81,8 @@ class _UserSettingsState extends State<UserSettings> {
         behavior: SnackBarBehavior.floating,
       ),
     );
-    Navigator.pushReplacementNamed(context, '/authentication');
+    Navigator.pushNamedAndRemoveUntil(
+        context, '/authentication', (route) => false);
   }
 
   Future<void> _deleteAccount() async {
@@ -131,7 +132,7 @@ class _UserSettingsState extends State<UserSettings> {
           );
           Navigator.pushNamedAndRemoveUntil(
             context,
-            '/homepage',
+            '/authentication',
             (route) => false,
           );
         }
@@ -331,7 +332,7 @@ class _UserSettingsState extends State<UserSettings> {
               textColor: Colors.red,
               onTap: _deleteAccount,
             ),
-            
+
             const SizedBox(height: 16),
 
             Center(
