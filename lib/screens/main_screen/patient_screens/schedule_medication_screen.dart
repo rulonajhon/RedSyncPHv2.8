@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:hemophilia_manager/services/firestore.dart';
-import 'package:hemophilia_manager/services/notification_service.dart';
 import 'package:hemophilia_manager/services/app_notification_service.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../../../services/enhanced_medication_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class ScheduleMedicationScreen extends StatefulWidget {
   const ScheduleMedicationScreen({super.key});
@@ -14,10 +13,10 @@ class ScheduleMedicationScreen extends StatefulWidget {
 }
 
 class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
-  final FirestoreService _firestoreService = FirestoreService();
-  final NotificationService _notificationService = NotificationService();
   final AppNotificationService _appNotificationService =
       AppNotificationService();
+  final EnhancedMedicationService _enhancedMedicationService =
+      EnhancedMedicationService();
   String _medType = 'IV Injection';
   final List<String> _medTypes = ['IV Injection', 'Subcutaneous', 'Oral'];
   final TextEditingController _doseController = TextEditingController();
@@ -35,6 +34,22 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
     'Every 3 Days',
   ];
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeServices();
+  }
+
+  Future<void> _initializeServices() async {
+    try {
+      print('🔄 Initializing Enhanced Medication Service in screen...');
+      await _enhancedMedicationService.initialize();
+      print('✅ Enhanced Medication Service initialized in screen');
+    } catch (e) {
+      print('⚠️ Warning: Failed to initialize services in screen: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -950,192 +965,133 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
         return;
       }
 
-      // Save to Firestore
-      final scheduleId = await _firestoreService.saveMedicationSchedule(
-        uid: user.uid,
-        medicationName: _medicationNameController.text.trim(),
-        dosage: _doseController.text.trim(),
-        administrationType: _medType,
-        frequency: _frequency,
-        reminderTime: _selectedTime,
-        notificationEnabled: _notification,
-        startDate: _startDate,
-        endDate: _endDate,
-        notes: _notesController.text.trim(),
-      );
-
-      // Schedule notification if enabled
-      if (_notification) {
-        try {
-          await _notificationService.initialize();
-          final permissionsGranted =
-              await _notificationService.requestPermissions();
-
-          if (!permissionsGranted) {
-            _showInfoDialog(
-              'Notification Warning',
-              'Notification permissions were not granted. You may not receive medication reminders. Please enable notifications in your device settings.',
-            );
-          }
-
-          // Generate a unique notification ID based on the schedule ID hash
-          final notificationId = scheduleId.hashCode;
-
-          print('Scheduling notification with ID: $notificationId');
-
-          if (_frequency == 'Daily') {
-            // Schedule daily repeating notification
-            print('Scheduling daily repeating notification...');
-            await _notificationService.scheduleRepeatingMedicationReminder(
-              id: notificationId,
-              title: 'Medication Reminder',
-              body:
-                  'Time to take ${_medicationNameController.text.trim()} (${_doseController.text.trim()})',
-              time: _selectedTime,
-              repeatInterval: RepeatInterval.daily,
-              payload: 'medication_reminder:$scheduleId',
-            );
-            print(
-              'Daily repeating notification scheduled for ${_selectedTime.format(context)}',
-            );
-          } else if (_frequency == 'Every 3 Days') {
-            // Schedule notifications every 3 days
-            print('Scheduling every 3 days notifications...');
-            DateTime currentDate = _startDate;
-            int notificationCounter = 0;
-
-            while (currentDate.isBefore(_endDate) ||
-                currentDate.isAtSameMomentAs(_endDate)) {
-              final scheduledTime = DateTime(
-                currentDate.year,
-                currentDate.month,
-                currentDate.day,
-                _selectedTime.hour,
-                _selectedTime.minute,
-              );
-
-              if (scheduledTime.isAfter(DateTime.now())) {
-                await _notificationService.scheduleMedicationReminder(
-                  id: notificationId + notificationCounter,
-                  title: 'Medication Reminder',
-                  body:
-                      'Time to take ${_medicationNameController.text.trim()} (${_doseController.text.trim()})',
-                  scheduledTime: scheduledTime,
-                  payload: 'medication_reminder:$scheduleId',
-                );
-                notificationCounter++;
-              }
-
-              currentDate = currentDate.add(const Duration(days: 3));
-            }
-            print('Scheduled $notificationCounter notifications every 3 days');
-          } else if (_frequency == 'Once') {
-            // Schedule a single notification
-            print('Scheduling single notification...');
-            final scheduledTime = DateTime(
-              _startDate.year,
-              _startDate.month,
-              _startDate.day,
-              _selectedTime.hour,
-              _selectedTime.minute,
-            );
-
-            final finalScheduledTime = scheduledTime.isBefore(DateTime.now())
-                ? scheduledTime.add(const Duration(days: 1))
-                : scheduledTime;
-
-            await _notificationService.scheduleMedicationReminder(
-              id: notificationId,
-              title: 'Medication Reminder',
-              body:
-                  'Time to take ${_medicationNameController.text.trim()} (${_doseController.text.trim()})',
-              scheduledTime: finalScheduledTime,
-              payload: 'medication_reminder:$scheduleId',
-            );
-            print('Single notification scheduled for: $finalScheduledTime');
-          }
-
-          // Debug: Check pending notifications
-          await _notificationService.debugPendingNotifications();
-
-          // Show a test notification to confirm notifications are working
-          try {
-            await _notificationService.showImmediateNotification(
-              id: 99999,
-              title: 'Medication Schedule Created',
-              body:
-                  'Your medication reminder for ${_medicationNameController.text.trim()} has been set up successfully!',
-              payload: 'schedule_created:$scheduleId',
-            );
-          } catch (e) {
-            print('Failed to show confirmation notification: $e');
-            // Don't fail the entire process if confirmation notification fails
-          }
-
-          // Also create a notification in our AppNotificationService for the in-app notifications
-          try {
-            await _appNotificationService.notifyMedicationReminder(
-              recipientId: user.uid,
-              medicationName: _medicationNameController.text.trim(),
-              dosage: _doseController.text.trim(),
-              scheduledTime: DateTime
-                  .now(), // This is just for creating the notification record
-            );
-          } catch (e) {
-            print('Failed to create in-app notification: $e');
-            // Don't fail the entire process if in-app notification fails
-          }
-        } catch (e) {
-          print('Error scheduling notification: $e');
-          // Don't fail the entire operation if notification fails
-          _showInfoDialog(
-            'Notification Warning',
-            'Your medication was scheduled successfully, but there was an issue setting up notifications. Please check your notification settings and ensure you have granted permission for notifications and exact alarms. You can try rescheduling the medication to fix this issue.',
-          );
-        }
+      // Check connectivity to adjust behavior
+      bool isOnline = false;
+      try {
+        final connectivity = await Connectivity().checkConnectivity();
+        isOnline = connectivity != ConnectivityResult.none;
+        print('📡 Connection status: ${isOnline ? "Online" : "Offline"}');
+      } catch (e) {
+        print('⚠️ Could not check connectivity: $e');
+        isOnline = false; // Assume offline if check fails
       }
 
-      // Show success dialog
-      _showSuccessDialog();
-    } catch (e) {
-      _showErrorDialog('Failed to schedule medication: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  void _showInfoDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.info, color: Colors.blue, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Text(title),
-            ],
-          ),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
+      // Initialize enhanced medication service with appropriate timeout
+      print('🔄 Initializing medication service...');
+      if (isOnline) {
+        // Online: Use shorter timeout
+        await _enhancedMedicationService.initialize().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            throw Exception(
+                'Service initialization timed out. Please try again.');
+          },
         );
-      },
-    );
+      } else {
+        // Offline: No timeout, just wait for it to complete
+        print('� Offline mode - allowing longer initialization time');
+        await _enhancedMedicationService.initialize();
+      }
+
+      print('🔄 Creating medication schedule...');
+      String? scheduleId;
+
+      if (isOnline) {
+        // Online: Use timeout for schedule creation
+        scheduleId = await _enhancedMedicationService
+            .createMedicationSchedule(
+          medicationName: _medicationNameController.text.trim(),
+          medType: _medType,
+          dose: _doseController.text.trim(),
+          frequency: _frequency,
+          time:
+              '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
+          startDate: _startDate.toIso8601String().split('T')[0],
+          endDate: _endDate.toIso8601String().split('T')[0],
+          daysOfWeek: ['1', '2', '3', '4', '5', '6', '7'], // All days for now
+          notes: _notesController.text.trim(),
+        )
+            .timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {
+            throw Exception(
+                'Creating schedule timed out. Please check your connection and try again.');
+          },
+        );
+      } else {
+        // Offline: No timeout, just create the schedule locally
+        print('📱 Creating schedule offline - no timeout applied');
+        scheduleId = await _enhancedMedicationService.createMedicationSchedule(
+          medicationName: _medicationNameController.text.trim(),
+          medType: _medType,
+          dose: _doseController.text.trim(),
+          frequency: _frequency,
+          time:
+              '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
+          startDate: _startDate.toIso8601String().split('T')[0],
+          endDate: _endDate.toIso8601String().split('T')[0],
+          daysOfWeek: ['1', '2', '3', '4', '5', '6', '7'], // All days for now
+          notes: _notesController.text.trim(),
+        );
+      }
+
+      if (scheduleId != null) {
+        print('✅ Schedule created successfully with ID: $scheduleId');
+
+        // Create in-app notification about the schedule (with error handling)
+        // Only try if online or with short timeout
+        try {
+          if (isOnline) {
+            await _appNotificationService.createNotification(
+              recipientId: user.uid,
+              type: NotificationType.medication,
+              title: 'Medication Schedule Created',
+              message:
+                  'Successfully scheduled ${_medicationNameController.text.trim()}',
+              data: {
+                'scheduleId': scheduleId,
+                'medicationName': _medicationNameController.text.trim(),
+                'frequency': _frequency,
+              },
+            ).timeout(const Duration(seconds: 5));
+          } else {
+            print(
+                '📱 Offline - skipping in-app notification (will sync later)');
+          }
+        } catch (notificationError) {
+          print(
+              '⚠️ Warning: Could not create in-app notification: $notificationError');
+          // Continue without notification - don't fail the entire operation
+        }
+
+        // Show success message
+        _showSuccessDialog();
+      } else {
+        _showErrorDialog('Failed to create medication schedule');
+      }
+    } catch (e) {
+      print('❌ Error saving schedule: $e');
+      String errorMessage = 'Error saving schedule';
+
+      if (e.toString().contains('timeout') ||
+          e.toString().contains('timed out')) {
+        errorMessage =
+            'Operation timed out. Please check your connection and try again.';
+      } else if (e.toString().contains('permission')) {
+        errorMessage = 'Permission denied. Please check app permissions.';
+      } else if (e.toString().contains('network') ||
+          e.toString().contains('connection')) {
+        errorMessage = 'Network error. Please check your connection.';
+      } else {
+        errorMessage = 'Error saving schedule: ${e.toString()}';
+      }
+
+      _showErrorDialog(errorMessage);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   void _showErrorDialog(String message) {

@@ -3,6 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/firestore.dart';
+import '../../../services/enhanced_app_notification_service.dart';
 import '../../../widgets/offline_indicator.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -14,16 +15,50 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final FirestoreService _firestoreService = FirestoreService();
+  final EnhancedAppNotificationService _enhancedNotificationService =
+      EnhancedAppNotificationService();
   final String uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  List<Map<String, dynamic>> _notifications = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _loadNotifications();
+  }
+
+  /// Load notifications from both offline and online sources
+  Future<void> _loadNotifications() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _enhancedNotificationService.initialize();
+      final notifications =
+          await _enhancedNotificationService.getNotifications();
+
+      if (mounted) {
+        setState(() {
+          _notifications = notifications;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading notifications: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _markAllAsRead() async {
-    if (uid.isNotEmpty) {
-      await _firestoreService.markAllNotificationsAsRead(uid);
+    try {
+      await _enhancedNotificationService.markAllAsRead();
+      await _loadNotifications(); // Refresh the list
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('All notifications marked as read'),
@@ -31,6 +66,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           backgroundColor: Colors.green,
         ),
       );
+    } catch (e) {
+      print('Error marking notifications as read: $e');
     }
   }
 

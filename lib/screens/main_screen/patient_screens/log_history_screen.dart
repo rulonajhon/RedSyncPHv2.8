@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../services/firestore.dart';
 import '../../../services/offline_service.dart';
+import '../../../services/firestore.dart';
 import '../../../widgets/offline_indicator.dart';
 
 class LogHistoryScreen extends StatefulWidget {
@@ -14,8 +14,8 @@ class LogHistoryScreen extends StatefulWidget {
 class _LogHistoryScreenState extends State<LogHistoryScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final FirestoreService _firestoreService = FirestoreService();
   final OfflineService _offlineService = OfflineService();
+  final FirestoreService _firestoreService = FirestoreService();
   List<Map<String, dynamic>> _bleedLogs = [];
   List<Map<String, dynamic>> _infusionLogs = [];
   bool _isLoading = true;
@@ -35,73 +35,24 @@ class _LogHistoryScreenState extends State<LogHistoryScreen>
   }
 
   Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        print('Loading data for user: ${user.uid}'); // Debug log
-
         // Initialize offline service
         await _offlineService.initialize();
 
-        // Load both online and offline data
+        // Load both offline and online data
         await Future.wait([
-          _loadOnlineData(user.uid),
           _loadOfflineData(),
+          _loadOnlineData(user.uid),
         ]);
-
-        setState(() {
-          _isLoading = false;
-        });
-      } else {
-        print('No user logged in'); // Debug log
-        setState(() => _isLoading = false);
       }
     } catch (e) {
-      print('Error loading data: $e'); // Debug log for troubleshooting
+      // Handle errors silently for production
+    } finally {
       setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _loadOnlineData(String uid) async {
-    try {
-      // Load bleed logs from Firestore
-      final bleeds = await _firestoreService.getBleedLogs(uid, limit: 50);
-      print('Loaded ${bleeds.length} online bleed logs');
-
-      // Load infusion logs from Firestore
-      final infusions = await _firestoreService.getInfusionLogs(uid);
-      print('Loaded ${infusions.length} online infusion logs');
-
-      // Convert to unified format with sync status
-      final onlineBleedLogs = bleeds
-          .map((log) => {
-                ...log,
-                'isOffline': false,
-                'needsSync': false,
-                'syncStatus': 'synced',
-              })
-          .toList();
-
-      final onlineInfusionLogs = infusions
-          .map((log) => {
-                ...log,
-                'isOffline': false,
-                'needsSync': false,
-                'syncStatus': 'synced',
-              })
-          .toList();
-
-      setState(() {
-        // Add online data to existing offline data
-        _bleedLogs.addAll(onlineBleedLogs);
-        _infusionLogs.addAll(onlineInfusionLogs);
-
-        // Sort by date (most recent first)
-        _bleedLogs.sort((a, b) => _compareLogDates(b, a));
-        _infusionLogs.sort((a, b) => _compareLogDates(b, a));
-      });
-    } catch (e) {
-      print('Error loading online data: $e');
     }
   }
 
@@ -109,11 +60,9 @@ class _LogHistoryScreenState extends State<LogHistoryScreen>
     try {
       // Load offline bleed logs
       final offlineBleedLogs = await _offlineService.getBleedLogs();
-      print('Loaded ${offlineBleedLogs.length} offline bleed logs');
 
       // Load offline infusion logs
       final offlineInfusionLogs = await _offlineService.getInfusionLogs();
-      print('Loaded ${offlineInfusionLogs.length} offline infusion logs');
 
       // Convert offline models to display format
       final formattedBleedLogs = offlineBleedLogs
@@ -150,12 +99,74 @@ class _LogHistoryScreenState extends State<LogHistoryScreen>
           .toList();
 
       setState(() {
+        // Initialize with offline data (online data will be added later)
         _bleedLogs = formattedBleedLogs;
         _infusionLogs = formattedInfusionLogs;
       });
     } catch (e) {
-      print('Error loading offline data: $e');
+      // Handle errors silently for production
     }
+  }
+
+  Future<void> _loadOnlineData(String uid) async {
+    try {
+      // Load bleed logs from Firestore
+      final onlineBleedLogs =
+          await _firestoreService.getBleedLogs(uid, limit: 100);
+
+      // Load infusion logs from Firestore
+      final onlineInfusionLogs = await _firestoreService.getInfusionLogs(uid);
+
+      // Convert to unified format and mark as online data
+      final formattedOnlineBleedLogs = onlineBleedLogs
+          .map((log) => {
+                ...log,
+                'isOffline': false,
+                'needsSync': false,
+                'syncStatus': 'synced',
+              })
+          .toList();
+
+      final formattedOnlineInfusionLogs = onlineInfusionLogs
+          .map((log) => {
+                ...log,
+                'isOffline': false,
+                'needsSync': false,
+                'syncStatus': 'synced',
+              })
+          .toList();
+
+      setState(() {
+        // Merge online data with existing offline data
+        _bleedLogs.addAll(formattedOnlineBleedLogs);
+        _infusionLogs.addAll(formattedOnlineInfusionLogs);
+
+        // Remove duplicates (in case same log exists both offline and online)
+        _bleedLogs = _removeDuplicateLogs(_bleedLogs);
+        _infusionLogs = _removeDuplicateLogs(_infusionLogs);
+
+        // Sort by date (most recent first)
+        _bleedLogs.sort((a, b) => _compareLogDates(b, a));
+        _infusionLogs.sort((a, b) => _compareLogDates(b, a));
+      });
+    } catch (e) {
+      // Handle errors silently for production
+    }
+  }
+
+  List<Map<String, dynamic>> _removeDuplicateLogs(
+      List<Map<String, dynamic>> logs) {
+    final seen = <String>{};
+    return logs.where((log) {
+      final id = log['id'] as String;
+      // Remove 'offline_' prefix if present to match with synced version
+      final cleanId = id.startsWith('offline_') ? id.substring(8) : id;
+      if (seen.contains(cleanId)) {
+        return false;
+      }
+      seen.add(cleanId);
+      return true;
+    }).toList();
   }
 
   int _compareLogDates(Map<String, dynamic> a, Map<String, dynamic> b) {
@@ -182,8 +193,36 @@ class _LogHistoryScreenState extends State<LogHistoryScreen>
 
       return dateA.compareTo(dateB);
     } catch (e) {
-      print('Error comparing dates: $e');
       return 0;
+    }
+  }
+
+  /// Force sync and refresh all data
+  Future<void> _forceRefresh() async {
+    try {
+      // Force sync with online database
+      await _offlineService.syncAllData();
+
+      // Reload all data
+      await _loadData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Data refreshed successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error refreshing data'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -203,6 +242,13 @@ class _LogHistoryScreenState extends State<LogHistoryScreen>
         ),
         backgroundColor: Colors.amber,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh data',
+            onPressed: _forceRefresh,
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -350,17 +396,23 @@ class _LogHistoryScreenState extends State<LogHistoryScreen>
                                                     children: [
                                                       Row(
                                                         children: [
-                                                          Text(
-                                                            log['bodyRegion'] ??
-                                                                'Unknown',
-                                                            style:
-                                                                const TextStyle(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                              fontSize: 16,
-                                                              color: Colors
-                                                                  .black87,
+                                                          Expanded(
+                                                            child: Text(
+                                                              log['bodyRegion'] ??
+                                                                  'Unknown',
+                                                              style:
+                                                                  const TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                fontSize: 16,
+                                                                color: Colors
+                                                                    .black87,
+                                                              ),
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                              maxLines: 1,
                                                             ),
                                                           ),
                                                           const SizedBox(
@@ -424,6 +476,10 @@ class _LogHistoryScreenState extends State<LogHistoryScreen>
                                                                   .shade600,
                                                               fontSize: 14,
                                                             ),
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                            maxLines: 2,
                                                           ),
                                                         ),
                                                       const SizedBox(height: 8),
@@ -580,9 +636,11 @@ class _LogHistoryScreenState extends State<LogHistoryScreen>
                       title: 'Log New Bleeding Episode',
                       subtitle: 'Record a new bleeding incident',
                       color: Colors.redAccent,
-                      onTap: () {
+                      onTap: () async {
                         Navigator.pop(context);
-                        Navigator.pushNamed(context, '/log_bleed');
+                        await Navigator.pushNamed(context, '/log_bleed');
+                        // Refresh data when returning from adding a new log
+                        _loadData();
                       },
                     ),
                     const SizedBox(height: 10),
@@ -591,9 +649,11 @@ class _LogHistoryScreenState extends State<LogHistoryScreen>
                       title: 'Log New Infusion Taken',
                       subtitle: 'Record treatment administration',
                       color: Colors.green,
-                      onTap: () {
+                      onTap: () async {
                         Navigator.pop(context);
-                        Navigator.pushNamed(context, '/log_infusion');
+                        await Navigator.pushNamed(context, '/log_infusion');
+                        // Refresh data when returning from adding a new log
+                        _loadData();
                       },
                     ),
                     const SizedBox(height: 20),

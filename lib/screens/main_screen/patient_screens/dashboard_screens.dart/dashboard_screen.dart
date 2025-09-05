@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hemophilia_manager/services/firestore.dart';
+import 'package:hemophilia_manager/services/enhanced_medication_service.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
@@ -15,6 +16,8 @@ class Dashboard extends StatefulWidget {
 
 class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   final FirestoreService _firestoreService = FirestoreService();
+  final EnhancedMedicationService _medicationService =
+      EnhancedMedicationService();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   String _userName = '';
   bool _isLoading = true;
@@ -29,8 +32,20 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _initializeServices();
     _loadUserData();
     _refreshAllData();
+  }
+
+  /// Initialize all required services
+  Future<void> _initializeServices() async {
+    try {
+      print('🔄 Initializing dashboard services...');
+      await _medicationService.initialize();
+      print('✅ Dashboard services initialized');
+    } catch (e) {
+      print('⚠️ Error initializing dashboard services: $e');
+    }
   }
 
   @override
@@ -376,7 +391,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final reminders = await _firestoreService.getTodaysMedicationReminders(
+        final reminders = await _medicationService.getTodaysReminders(
           user.uid,
         );
 
@@ -984,7 +999,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${reminder['dosage'] ?? 'Unknown dosage'} • ${reminder['administrationType'] ?? 'Unknown type'}',
+                  '${reminder['dose'] ?? 'Unknown dosage'} • ${reminder['medType'] ?? 'Unknown type'}',
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
                 const SizedBox(height: 2),
@@ -1039,8 +1054,8 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      // Mark medication as taken
-      await _firestoreService.markMedicationTaken(user.uid, reminder['id']);
+      // Mark medication as taken using enhanced service
+      await _medicationService.markMedicationTaken(user.uid, reminder['id']);
 
       // Show success feedback
       ScaffoldMessenger.of(context).showSnackBar(

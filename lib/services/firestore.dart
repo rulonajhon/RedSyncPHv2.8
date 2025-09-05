@@ -508,9 +508,10 @@ class FirestoreService {
     String? specificRegion,
     String? notes,
     String? photoUrl,
+    String? customId, // Add custom ID parameter
   }) async {
     try {
-      final doc = await _db.collection('bleed_logs').add({
+      final logData = {
         'uid': uid,
         'date': date,
         'time': time,
@@ -521,7 +522,30 @@ class FirestoreService {
         'photoUrl': photoUrl ?? '',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      };
+
+      final String docId;
+
+      if (customId != null) {
+        // Use custom ID to prevent duplicates (for offline sync)
+        final docRef = _db.collection('bleed_logs').doc(customId);
+
+        // Check if document already exists
+        final docSnapshot = await docRef.get();
+        if (docSnapshot.exists) {
+          print('Bleed log already exists, skipping: $customId');
+          return customId;
+        }
+
+        await docRef.set(logData);
+        docId = customId;
+        print('Bleed log synced with custom ID: $customId');
+      } else {
+        // Create new document with auto-generated ID (for direct saves)
+        final doc = await _db.collection('bleed_logs').add(logData);
+        docId = doc.id;
+        print('Bleed log saved with new ID: $docId');
+      }
 
       // Notify healthcare providers who have access to this patient's data
       await _notifyHealthcareProvidersOfBleedLog(
@@ -529,11 +553,11 @@ class FirestoreService {
         date,
         bodyRegion,
         severity,
-        doc.id,
+        docId,
       );
 
       print('Bleed log saved successfully');
-      return doc.id;
+      return docId;
     } catch (e) {
       print('Error saving bleed log: $e');
       rethrow;
@@ -868,8 +892,11 @@ class FirestoreService {
         }
 
         if (schedule['notificationEnabled'] == true) {
-          final reminderHour = schedule['reminderTimeHour'] as int? ?? 9;
-          final reminderMinute = schedule['reminderTimeMinute'] as int? ?? 0;
+          // Parse time from string format "HH:MM"
+          final timeString = schedule['time'] as String? ?? '09:00';
+          final timeParts = timeString.split(':');
+          final reminderHour = int.tryParse(timeParts[0]) ?? 9;
+          final reminderMinute = int.tryParse(timeParts[1]) ?? 0;
 
           final reminderTime = DateTime(
             now.year,
@@ -889,8 +916,8 @@ class FirestoreService {
             final reminderData = Map<String, dynamic>.from(schedule);
             reminderData['reminderDateTime'] = reminderTime;
             reminderData['isPending'] = reminderTime.isAfter(now);
-            reminderData['isOverdue'] = reminderTime.isBefore(now) &&
-                reminderTime.isAfter(now.subtract(Duration(hours: 2)));
+            reminderData['isOverdue'] = reminderTime.isBefore(
+                now); // Remove 15-minute grace period - overdue immediately when time passes
             todaysReminders.add(reminderData);
             print(
               'Added reminder for: ${schedule['medicationName']}',
@@ -1064,6 +1091,7 @@ class FirestoreService {
     required String date,
     required String time,
     required String notes,
+    String? customId, // Add custom ID parameter
   }) async {
     try {
       final logData = {
@@ -1077,9 +1105,30 @@ class FirestoreService {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      final docRef = await _db.collection('infusion_logs').add(logData);
-      print('Infusion log saved with ID: ${docRef.id}');
-      return docRef.id;
+      final String docId;
+
+      if (customId != null) {
+        // Use custom ID to prevent duplicates (for offline sync)
+        final docRef = _db.collection('infusion_logs').doc(customId);
+
+        // Check if document already exists
+        final docSnapshot = await docRef.get();
+        if (docSnapshot.exists) {
+          print('Infusion log already exists, skipping: $customId');
+          return customId;
+        }
+
+        await docRef.set(logData);
+        docId = customId;
+        print('Infusion log synced with custom ID: $customId');
+      } else {
+        // Create new document with auto-generated ID (for direct saves)
+        final docRef = await _db.collection('infusion_logs').add(logData);
+        docId = docRef.id;
+        print('Infusion log saved with new ID: $docId');
+      }
+
+      return docId;
     } catch (e) {
       print('Error saving infusion log: $e');
       rethrow;

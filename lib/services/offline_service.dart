@@ -1,11 +1,16 @@
+import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/offline/log_bleed.dart';
 import '../models/offline/infusion_log.dart';
 import '../models/offline/calculator_history.dart';
+import '../models/offline/notification.dart';
+import '../models/offline/medication_schedule.dart';
 import 'firestore.dart';
+import 'enhanced_app_notification_service.dart';
 
 class OfflineService {
   static final OfflineService _instance = OfflineService._internal();
@@ -20,6 +25,8 @@ class OfflineService {
   static const String _infusionLogsBox = 'infusion_logs';
   static const String _calculatorHistoryBox = 'calculator_history';
   static const String _educationalResourcesBox = 'educational_resources';
+  static const String _notificationsBox = 'notifications';
+  static const String _medicationSchedulesBox = 'medication_schedules';
 
   /// Initialize Hive database and register adapters
   Future<void> initialize() async {
@@ -39,14 +46,42 @@ class OfflineService {
       if (!Hive.isAdapterRegistered(3)) {
         Hive.registerAdapter(CalculatorHistoryAdapter());
       }
+      if (!Hive.isAdapterRegistered(4)) {
+        Hive.registerAdapter(AppNotificationAdapter());
+      }
+      if (!Hive.isAdapterRegistered(5)) {
+        Hive.registerAdapter(MedicationScheduleAdapter());
+      }
 
-      // Open boxes
-      await Future.wait([
-        Hive.openBox<BleedLog>(_bleedLogsBox),
-        Hive.openBox<InfusionLog>(_infusionLogsBox),
-        Hive.openBox<CalculatorHistory>(_calculatorHistoryBox),
-        Hive.openBox<Map>(_educationalResourcesBox),
-      ]);
+      // Try to open boxes, if error occurs, clear corrupted data
+      try {
+        await Future.wait([
+          Hive.openBox<BleedLog>(_bleedLogsBox),
+          Hive.openBox<InfusionLog>(_infusionLogsBox),
+          Hive.openBox<CalculatorHistory>(_calculatorHistoryBox),
+          Hive.openBox<Map>(_educationalResourcesBox),
+          Hive.openBox<AppNotification>(_notificationsBox),
+          Hive.openBox<MedicationSchedule>(_medicationSchedulesBox),
+        ]);
+      } catch (e) {
+        print('⚠️ Error opening Hive boxes (likely data format mismatch): $e');
+        print('🔄 Clearing corrupted Hive data and recreating boxes...');
+
+        // Delete corrupted box files
+        await _clearCorruptedBoxes();
+
+        // Try opening boxes again
+        await Future.wait([
+          Hive.openBox<BleedLog>(_bleedLogsBox),
+          Hive.openBox<InfusionLog>(_infusionLogsBox),
+          Hive.openBox<CalculatorHistory>(_calculatorHistoryBox),
+          Hive.openBox<Map>(_educationalResourcesBox),
+          Hive.openBox<AppNotification>(_notificationsBox),
+          Hive.openBox<MedicationSchedule>(_medicationSchedulesBox),
+        ]);
+
+        print('✅ Hive boxes recreated successfully');
+      }
 
       _isInitialized = true;
       print('✅ OfflineService initialized successfully');
@@ -304,9 +339,15 @@ class OfflineService {
       await Future.wait([
         _syncBleedLogs(),
         _syncInfusionLogs(),
+        _downloadOnlineData(), // Download data from Firestore to local storage
+        _syncNotifications(),
+        _syncMedicationSchedules(),
       ]);
 
       print('✅ Sync completed successfully');
+
+      // Clean up old synced records to prevent excessive storage usage
+      await cleanupOldRecords();
     } catch (e) {
       print('❌ Error during sync: $e');
     }
@@ -318,6 +359,8 @@ class OfflineService {
       final box = Hive.box<BleedLog>(_bleedLogsBox);
       final unsynced = box.values.where((log) => log.needsSync).toList();
 
+      print('🔄 Syncing ${unsynced.length} bleed logs...');
+
       for (final log in unsynced) {
         try {
           await _firestoreService.saveBleedLog(
@@ -328,6 +371,7 @@ class OfflineService {
             severity: log.severity,
             specificRegion: log.specificRegion,
             notes: log.notes,
+            customId: log.id, // Pass the offline ID to prevent duplicates
           );
 
           // Mark as synced
@@ -351,6 +395,8 @@ class OfflineService {
       final box = Hive.box<InfusionLog>(_infusionLogsBox);
       final unsynced = box.values.where((log) => log.needsSync).toList();
 
+      print('🔄 Syncing ${unsynced.length} infusion logs...');
+
       for (final log in unsynced) {
         try {
           await _firestoreService.saveInfusionLog(
@@ -360,6 +406,7 @@ class OfflineService {
             date: log.date,
             time: log.time,
             notes: log.notes,
+            customId: log.id, // Pass the offline ID to prevent duplicates
           );
 
           // Mark as synced
@@ -374,6 +421,96 @@ class OfflineService {
       }
     } catch (e) {
       print('❌ Error syncing infusion logs: $e');
+    }
+  }
+
+  /// Download online data from Firestore to local storage
+  Future<void> _downloadOnlineData() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      // Download bleed logs from Firestore
+      final onlineBleedLogs = await _firestoreService.getBleedLogs(uid);
+      final bleedBox = Hive.box<BleedLog>(_bleedLogsBox);
+
+      for (final logData in onlineBleedLogs) {
+        final existingLog =
+            bleedBox.values.where((log) => log.id == logData['id']).firstOrNull;
+        if (existingLog == null) {
+          final dateTime = (logData['date'] as Timestamp).toDate();
+          final bleedLog = BleedLog(
+            id: logData['id'],
+            uid: uid,
+            date: logData['date_string'] ??
+                dateTime.toString().split(' ')[0], // Use string format
+            time: logData['time'] ?? '',
+            bodyRegion: logData['bodyRegion'] ?? '',
+            severity: logData['severity'] ?? '',
+            specificRegion: logData['specificRegion'] ?? '',
+            notes: logData['notes'] ?? '',
+            createdAt: dateTime,
+            needsSync: false,
+            syncedAt: DateTime.now(),
+          );
+
+          await bleedBox.add(bleedLog);
+        }
+      }
+
+      // Download infusion logs from Firestore
+      final onlineInfusionLogs = await _firestoreService.getInfusionLogs(uid);
+      final infusionBox = Hive.box<InfusionLog>(_infusionLogsBox);
+
+      for (final logData in onlineInfusionLogs) {
+        final existingLog = infusionBox.values
+            .where((log) => log.id == logData['id'])
+            .firstOrNull;
+        if (existingLog == null) {
+          final dateTime = (logData['date'] as Timestamp).toDate();
+          final infusionLog = InfusionLog(
+            id: logData['id'],
+            uid: uid,
+            medication: logData['medication'] ?? '',
+            doseIU: logData['doseIU'] ?? 0,
+            date: logData['date_string'] ??
+                dateTime.toString().split(' ')[0], // Use string format
+            time: logData['time'] ?? '',
+            notes: logData['notes'] ?? '',
+            createdAt: dateTime,
+            needsSync: false,
+            syncedAt: DateTime.now(),
+          );
+
+          await infusionBox.add(infusionLog);
+        }
+      }
+
+      print('📥 Downloaded online data to local storage');
+    } catch (e) {
+      print('❌ Error downloading online data: $e');
+    }
+  }
+
+  /// Sync notifications with enhanced notification service
+  Future<void> _syncNotifications() async {
+    try {
+      final enhancedService = EnhancedAppNotificationService();
+      await enhancedService.syncNotifications();
+      print('📧 Synced notifications');
+    } catch (e) {
+      print('❌ Error syncing notifications: $e');
+    }
+  }
+
+  /// Sync medication schedules with enhanced medication service
+  Future<void> _syncMedicationSchedules() async {
+    try {
+      // Import at runtime to avoid circular dependency
+      print('💊 Syncing medication schedules...');
+      print('💊 Medication schedules sync completed (placeholder)');
+    } catch (e) {
+      print('❌ Error syncing medication schedules: $e');
     }
   }
 
@@ -422,6 +559,46 @@ class OfflineService {
     }
   }
 
+  /// Clean up old synced records (keeps last 100 of each type)
+  Future<void> cleanupOldRecords() async {
+    try {
+      await initialize();
+
+      final bleedBox = Hive.box<BleedLog>(_bleedLogsBox);
+      final infusionBox = Hive.box<InfusionLog>(_infusionLogsBox);
+
+      // Clean bleed logs - keep only the 100 most recent synced records
+      final syncedBleeds = bleedBox.values
+          .where((log) => !log.needsSync)
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      if (syncedBleeds.length > 100) {
+        final toDelete = syncedBleeds.skip(100);
+        for (final log in toDelete) {
+          await log.delete();
+        }
+        print('🧹 Cleaned up ${toDelete.length} old bleed logs');
+      }
+
+      // Clean infusion logs - keep only the 100 most recent synced records
+      final syncedInfusions = infusionBox.values
+          .where((log) => !log.needsSync)
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      if (syncedInfusions.length > 100) {
+        final toDelete = syncedInfusions.skip(100);
+        for (final log in toDelete) {
+          await log.delete();
+        }
+        print('🧹 Cleaned up ${toDelete.length} old infusion logs');
+      }
+    } catch (e) {
+      print('❌ Error cleaning up old records: $e');
+    }
+  }
+
   /// Clear all offline data (use with caution)
   Future<void> clearAllOfflineData() async {
     try {
@@ -463,6 +640,34 @@ class OfflineService {
     } catch (e) {
       print('❌ Error getting storage stats: $e');
       return {};
+    }
+  }
+
+  /// Clear corrupted Hive box files
+  Future<void> _clearCorruptedBoxes() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+
+      // List of box file extensions to delete
+      final boxExtensions = ['.hive', '.lock'];
+      final boxNames = [
+        _bleedLogsBox,
+        _infusionLogsBox,
+        _calculatorHistoryBox,
+        _educationalResourcesBox
+      ];
+
+      for (final boxName in boxNames) {
+        for (final extension in boxExtensions) {
+          final file = File('${dir.path}/$boxName$extension');
+          if (await file.exists()) {
+            await file.delete();
+            print('🗑️ Deleted corrupted file: ${file.path}');
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ Error clearing corrupted boxes: $e');
     }
   }
 }

@@ -22,6 +22,9 @@ lib/config/api_keys.dart
 **/secrets.properties
 **/google-services.json
 **/GoogleService-Info.plist
+lib/firebase_options.dart
+test_data_setup.dart
+test_data_populator.dart
 
 # IntelliJ related
 *.iml
