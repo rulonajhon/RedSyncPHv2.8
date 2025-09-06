@@ -1138,12 +1138,42 @@ class FirestoreService {
   // Get infusion logs for a user
   Future<List<Map<String, dynamic>>> getInfusionLogs(String uid) async {
     try {
+      print('=== FIRESTORE INFUSION LOGS DEBUG ===');
       print('Fetching infusion logs for user: $uid');
+      print('Collection: infusion_logs');
+      print('Query: where uid == $uid');
 
       final querySnapshot = await _db
           .collection('infusion_logs')
           .where('uid', isEqualTo: uid)
           .get();
+
+      print('Raw query result: ${querySnapshot.docs.length} documents');
+
+      // Log the first few documents for debugging
+      if (querySnapshot.docs.isNotEmpty) {
+        for (int i = 0; i < querySnapshot.docs.length && i < 3; i++) {
+          final doc = querySnapshot.docs[i];
+          print('Document $i: id=${doc.id}, data=${doc.data()}');
+        }
+      } else {
+        print('No documents found - checking collection exists...');
+        // Try a simple collection count
+        final collectionSnapshot =
+            await _db.collection('infusion_logs').limit(1).get();
+        print(
+            'Total docs in infusion_logs collection: ${collectionSnapshot.docs.length}');
+
+        // If there are docs, let's see what uid they have
+        if (collectionSnapshot.docs.isNotEmpty) {
+          final firstDoc = collectionSnapshot.docs.first;
+          final data = firstDoc.data();
+          print('First document data: $data');
+          print('First document uid field: ${data['uid']}');
+          print('Searching for uid: $uid');
+          print('UID match: ${data['uid'] == uid}');
+        }
+      }
 
       print('Found ${querySnapshot.docs.length} infusion logs');
 
@@ -1185,6 +1215,14 @@ class FirestoreService {
 
         return bMillis.compareTo(aMillis); // Descending order
       });
+
+      print('Processed logs sample:');
+      for (int i = 0; i < logs.length && i < 3; i++) {
+        final log = logs[i];
+        print(
+            'Log $i: id=${log['id']}, medication=${log['medication']}, date=${log['date']}, createdAt=${log['createdAt']}');
+      }
+      print('=== END FIRESTORE INFUSION LOGS DEBUG ===');
 
       return logs;
     } catch (e) {

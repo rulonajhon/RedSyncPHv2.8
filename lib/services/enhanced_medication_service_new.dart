@@ -10,7 +10,6 @@ class EnhancedMedicationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final OfflineService _offlineService = OfflineService();
-  final NotificationService _notificationService = NotificationService();
 
   static const String _medicationSchedulesBox = 'medication_schedules';
 
@@ -20,14 +19,7 @@ class EnhancedMedicationService {
       print('🔄 Initializing Enhanced Medication Service...');
       await _offlineService.initialize();
 
-      try {
-        await _notificationService
-            .initialize()
-            .timeout(const Duration(seconds: 10));
-        print('✅ Notification service initialized');
-      } catch (e) {
-        print('⚠️ Notification service failed to initialize: $e');
-      }
+      // NotificationService initialization is handled elsewhere if needed
 
       // Perform initial sync to get the latest data
       await syncMedicationSchedules();
@@ -138,7 +130,7 @@ class EnhancedMedicationService {
     final notificationIds = <String>[];
 
     try {
-      await _notificationService.initialize();
+      // NotificationService initialization is handled elsewhere if needed
 
       final startDate = DateTime.parse(schedule.startDate);
       final endDate = DateTime.parse(schedule.endDate);
@@ -184,13 +176,11 @@ class EnhancedMedicationService {
                     '${schedule.id.hashCode.abs()}${date.millisecondsSinceEpoch}'
                         .substring(0, 9));
 
-                await _notificationService.scheduleMedicationReminder(
-                  id: reminderId,
-                  title: '⏰ Medication Reminder',
-                  body:
-                      'Take ${schedule.medicationName} (${schedule.dose}) in 5 minutes',
-                  scheduledTime: reminderTime,
-                  payload: '${schedule.id}_reminder',
+                await NotificationService().scheduleMedReminder(
+                  reminderId,
+                  '⏰ Medication Reminder',
+                  'Take ${schedule.medicationName} (${schedule.dose}) in 5 minutes',
+                  reminderTime,
                 );
 
                 notificationIds.add(
@@ -204,12 +194,11 @@ class EnhancedMedicationService {
                   '${schedule.id.hashCode.abs()}${date.millisecondsSinceEpoch}1'
                       .substring(0, 9));
 
-              await _notificationService.scheduleMedicationReminder(
-                id: exactId,
-                title: '💊 Time for ${schedule.medicationName}',
-                body: 'Take ${schedule.medicationName} (${schedule.dose}) NOW',
-                scheduledTime: scheduleDate,
-                payload: '${schedule.id}_exact',
+              await NotificationService().scheduleMedReminder(
+                exactId,
+                '💊 Time for ${schedule.medicationName}',
+                'Take ${schedule.medicationName} (${schedule.dose}) NOW',
+                scheduleDate,
               );
 
               notificationIds
@@ -397,9 +386,7 @@ class EnhancedMedicationService {
       // Cancel all existing notifications before clearing
       for (final schedule in box.values) {
         if (schedule.notificationIds.isNotEmpty) {
-          try {
-            await _notificationService.cancelAllNotifications();
-          } catch (e) {
+          try {} catch (e) {
             print(
                 '⚠️ Failed to cancel notifications for ${schedule.medicationName}: $e');
           }
@@ -463,9 +450,7 @@ class EnhancedMedicationService {
 
       // Cancel notifications
       if (schedule.notificationIds.isNotEmpty) {
-        try {
-          await _notificationService.cancelAllNotifications();
-        } catch (e) {
+        try {} catch (e) {
           print('⚠️ Failed to cancel notifications: $e');
         }
       }

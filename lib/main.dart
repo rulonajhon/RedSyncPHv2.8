@@ -32,10 +32,11 @@ void main() async {
     print('Warning: Failed to initialize OpenAI service: $e');
   }
 
-  // Initialize Notification service
+  // Initialize Notification service and cancel all old notifications
   try {
-    await NotificationService().initialize();
-    print('Notification service initialized successfully');
+    final notificationService = NotificationService();
+    await notificationService.initNotifications();
+    print('Notification service initialized');
   } catch (e) {
     print('Warning: Failed to initialize Notification service: $e');
     // App can still function without notifications
@@ -76,8 +77,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    // Set up notification tap handling
-    NotificationService.setNavigationCallback(_handleNotificationTap);
+    // Notification tap handling is now managed via the NotificationService singleton and plugin callbacks.
   }
 
   void _handleNotificationTap(String payload) {

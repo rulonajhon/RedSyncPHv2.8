@@ -10,7 +10,6 @@ class EnhancedMedicationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final OfflineService _offlineService = OfflineService();
-  final NotificationService _notificationService = NotificationService();
 
   static const String _medicationSchedulesBox = 'medication_schedules';
 
@@ -21,13 +20,8 @@ class EnhancedMedicationService {
       await _offlineService.initialize();
 
       try {
-        await _notificationService
-            .initialize()
-            .timeout(const Duration(seconds: 10));
+        await NotificationService().initNotifications();
         print('✅ Notification service initialized');
-        
-        // Test notification permissions and send a test notification
-        await _testNotificationSystem();
       } catch (e) {
         print('⚠️ Notification service failed to initialize: $e');
       }
@@ -47,97 +41,88 @@ class EnhancedMedicationService {
   /// Schedule notifications for today's medications that haven't been taken yet
   Future<void> _scheduleTodaysPendingNotifications() async {
     try {
-      print('🔔 Checking for today\'s pending notifications...');
-      
+      print('🔔 [DEBUG] Checking for today\'s pending notifications...');
+
       final user = _auth.currentUser;
       if (user == null) {
-        print('❌ No authenticated user - skipping notification scheduling');
+        print(
+            '❌ [DEBUG] No authenticated user - skipping notification scheduling');
         return;
       }
 
       final todaysReminders = await getTodaysReminders(user.uid);
+      print('🔔 [DEBUG] Found ${todaysReminders.length} reminders for today');
       final now = DateTime.now();
-      
+
       for (final reminder in todaysReminders) {
-        final reminderTime = reminder['reminderDateTime'] as DateTime;
+        final reminderTime =
+            (reminder['reminderDateTime'] as DateTime).toLocal();
         final medicationName = reminder['medicationName'] as String;
         final dose = reminder['dose'] as String;
         final scheduleId = reminder['id'] as String;
-        
+        print(
+            '🔔 [DEBUG] Processing reminder: $medicationName, $dose, $reminderTime');
+
         // Only schedule if the medication time is still in the future
         if (reminderTime.isAfter(now)) {
           // Schedule 5-minute advance notification
-          final reminderAdvanceTime = reminderTime.subtract(const Duration(minutes: 5));
+          final reminderAdvanceTime =
+              reminderTime.subtract(const Duration(minutes: 5)).toLocal();
           if (reminderAdvanceTime.isAfter(now)) {
             try {
-              final reminderId = int.parse('${scheduleId.hashCode.abs()}${reminderTime.millisecondsSinceEpoch}'.substring(0, 9));
-              
-              await _notificationService.scheduleMedicationReminder(
-                id: reminderId,
-                title: '⏰ Gentle Reminder',
-                body: 'It\'s almost time for your $medicationName ($dose). Please prepare to take it in 5 minutes.',
-                scheduledTime: reminderAdvanceTime,
-                payload: '${scheduleId}_reminder',
+              final reminderId = int.parse(
+                  '${scheduleId.hashCode.abs()}${reminderTime.millisecondsSinceEpoch}'
+                      .substring(0, 9));
+              print(
+                  '🔔 [DEBUG] Scheduling 5-min advance notification for $medicationName at $reminderAdvanceTime');
+              await NotificationService().scheduleMedReminder(
+                reminderId,
+                '⏰ Gentle Reminder',
+                'It\'s almost time for your $medicationName ($dose). Please prepare to take it in 5 minutes.',
+                reminderAdvanceTime,
               );
-              
-              print('📱 5-min advance notification scheduled for $medicationName at $reminderAdvanceTime');
+              print(
+                  '📱 [DEBUG] 5-min advance notification scheduled for $medicationName at $reminderAdvanceTime');
             } catch (e) {
-              print('⚠️ Failed to schedule 5-min reminder for $medicationName: $e');
+              print(
+                  '⚠️ [DEBUG] Failed to schedule 5-min reminder for $medicationName: $e');
             }
           } else {
-            print('⏭️ 5-min reminder time passed for $medicationName');
+            print('⏭️ [DEBUG] 5-min reminder time passed for $medicationName');
           }
-          
+
           // Schedule exact time notification
           try {
-            final exactId = int.parse('${scheduleId.hashCode.abs()}${reminderTime.millisecondsSinceEpoch}1'.substring(0, 9));
-            
-            await _notificationService.scheduleMedicationReminder(
-              id: exactId,
-              title: '💊 Time for $medicationName',
-              body: 'Please take your $medicationName ($dose) now. Thank you for staying on track with your medication schedule.',
-              scheduledTime: reminderTime,
-              payload: '${scheduleId}_exact',
+            final exactId = int.parse(
+                '${scheduleId.hashCode.abs()}${reminderTime.millisecondsSinceEpoch}1'
+                    .substring(0, 9));
+            print(
+                '🔔 [DEBUG] Scheduling exact time notification for $medicationName at $reminderTime');
+            await NotificationService().scheduleMedReminder(
+              exactId,
+              '💊 Time for $medicationName',
+              'Please take your $medicationName ($dose) now. Thank you for staying on track with your medication schedule.',
+              reminderTime,
             );
-            
-            print('📱 Exact time notification scheduled for $medicationName at $reminderTime');
+            print(
+                '📱 [DEBUG] Exact time notification scheduled for $medicationName at $reminderTime');
           } catch (e) {
-            print('⚠️ Failed to schedule exact time notification for $medicationName: $e');
+            print(
+                '⚠️ [DEBUG] Failed to schedule exact time notification for $medicationName: $e');
           }
         } else {
-          print('⏭️ Medication time already passed for $medicationName at $reminderTime');
+          print(
+              '⏭️ [DEBUG] Medication time already passed for $medicationName at $reminderTime');
         }
       }
-      
-      print('✅ Today\'s pending notifications scheduling completed');
+
+      print('✅ [DEBUG] Today\'s pending notifications scheduling completed');
     } catch (e) {
-      print('❌ Error scheduling today\'s pending notifications: $e');
+      print('❌ [DEBUG] Error scheduling today\'s pending notifications: $e');
     }
   }
 
   /// Test notification system and send immediate test notification
-  Future<void> _testNotificationSystem() async {
-    try {
-      print('🔔 Testing notification system...');
-      
-      // Check permissions
-      final hasPermissions = await _notificationService.requestPermissions();
-      print('🔐 Notification permissions: $hasPermissions');
-      
-      if (hasPermissions) {
-        // Send immediate test notification
-        await _notificationService.showImmediateNotification(
-          title: '✅ System Ready',
-          body: 'Your medication reminder system is working properly.',
-        );
-        print('✅ System check notification sent');
-      } else {
-        print('❌ No notification permissions - cannot send notifications');
-      }
-    } catch (e) {
-      print('❌ Error testing notification system: $e');
-    }
-  }
 
   /// Create a new medication schedule with UID-based unique ID
   Future<String?> createMedicationSchedule({
@@ -209,6 +194,10 @@ class EnhancedMedicationService {
           await _saveMedicationScheduleOffline(updatedSchedule);
           print('✅ Notifications scheduled: ${notificationIds.length}');
         }
+        // Force refresh today's reminders after scheduling
+        print(
+            '🔄 Forcing refresh of today\'s reminders after creating medication');
+        await getTodaysReminders(uid);
       } catch (e) {
         print('⚠️ Failed to schedule notifications: $e');
       }
@@ -219,6 +208,10 @@ class EnhancedMedicationService {
         if (connectivityResult.first != ConnectivityResult.none) {
           await _syncSingleScheduleToFirebase(schedule, daysOfWeek);
           print('✅ Medication schedule synced to Firebase');
+          // Force sync all schedules from Firebase to local Hive
+          print(
+              '🔄 Force syncing all medication schedules from Firebase to Hive after creation');
+          await syncMedicationSchedules();
         } else {
           print('⚠️ Offline - will sync when connection is restored');
         }
@@ -239,8 +232,6 @@ class EnhancedMedicationService {
     final notificationIds = <String>[];
 
     try {
-      await _notificationService.initialize();
-
       final startDate = DateTime.parse(schedule.startDate);
       final endDate = DateTime.parse(schedule.endDate);
 
@@ -277,62 +268,34 @@ class EnhancedMedicationService {
 
           if (scheduleDate.isAfter(DateTime.now())) {
             try {
-              // 1. Schedule 5-minute reminder notification
-              final reminderTime =
-                  scheduleDate.subtract(const Duration(minutes: 5));
-              print('🕐 DEBUG: Medication time: $scheduleDate');
-              print('🕐 DEBUG: 5-min reminder time: $reminderTime');
-              print('🕐 DEBUG: Current time: ${DateTime.now()}');
-              print('🕐 DEBUG: Is reminder in future? ${reminderTime.isAfter(DateTime.now())}');
-              
-              int? reminderId;
-              if (reminderTime.isAfter(DateTime.now())) {
-                reminderId = int.parse(
-                    '${schedule.id.hashCode.abs()}${date.millisecondsSinceEpoch}'
-                        .substring(0, 9));
+              // SIMPLE APPROACH: Only ONE notification at exact medication time
+              print(
+                  '� SIMPLE: Scheduling ONE notification at exact time for ${schedule.medicationName}');
 
-                print('🔔 DEBUG: Scheduling 5-min reminder with ID: $reminderId');
-                await _notificationService.scheduleMedicationReminder(
-                  id: reminderId,
-                  title: '⏰ Gentle Reminder',
-                  body:
-                      'It\'s almost time for your ${schedule.medicationName} (${schedule.dose}). Please prepare to take it in 5 minutes.',
-                  scheduledTime: reminderTime,
-                  payload: '${schedule.id}_reminder',
-                );
-
-                notificationIds.add(
-                    '${schedule.id}_reminder_${date.millisecondsSinceEpoch}');
-                print(
-                    '📱 5-min reminder scheduled for ${schedule.medicationName} at $reminderTime');
-              } else {
-                print('⏭️ SKIPPING 5-min reminder - time has passed: $reminderTime');
-              }
-
-              // 2. Schedule exact time notification
+              // Schedule ONLY exact time notification
               final exactId = int.parse(
                   '${schedule.id.hashCode.abs()}${date.millisecondsSinceEpoch}1'
                       .substring(0, 9));
 
-              print('🔔 DEBUG: Scheduling exact time notification with ID: $exactId');
-              await _notificationService.scheduleMedicationReminder(
-                id: exactId,
-                title: '💊 Time for ${schedule.medicationName}',
-                body: 'Please take your ${schedule.medicationName} (${schedule.dose}) now. Thank you for staying on track with your medication schedule.',
-                scheduledTime: scheduleDate,
-                payload: '${schedule.id}_exact',
+              print(
+                  '🔔 DEBUG: Scheduling exact time notification with ID: $exactId');
+              await NotificationService().scheduleMedReminder(
+                exactId,
+                '💊 Time for ${schedule.medicationName}',
+                'Please take your ${schedule.medicationName} (${schedule.dose}) now.',
+                scheduleDate,
               );
 
               notificationIds
                   .add('${schedule.id}_exact_${date.millisecondsSinceEpoch}');
               print(
-                  '📱 Exact time notification scheduled for ${schedule.medicationName} at $scheduleDate');
-                  
-              // Verify notifications are scheduled
-              await _verifyScheduledNotifications(reminderId, exactId, schedule.medicationName);
+                  '📱 SIMPLE: Single notification scheduled for ${schedule.medicationName} at $scheduleDate');
+
+              // Verify notification is scheduled
+              await _verifyScheduledNotifications(
+                  null, exactId, schedule.medicationName);
             } catch (e) {
-              print(
-                  '⚠️ Failed to schedule notifications for $scheduleDate: $e');
+              print('⚠️ Failed to schedule notification for $scheduleDate: $e');
             }
           }
         }
@@ -511,9 +474,7 @@ class EnhancedMedicationService {
       // Cancel all existing notifications before clearing
       for (final schedule in box.values) {
         if (schedule.notificationIds.isNotEmpty) {
-          try {
-            await _notificationService.cancelAllNotifications();
-          } catch (e) {
+          try {} catch (e) {
             print(
                 '⚠️ Failed to cancel notifications for ${schedule.medicationName}: $e');
           }
@@ -577,9 +538,7 @@ class EnhancedMedicationService {
 
       // Cancel notifications
       if (schedule.notificationIds.isNotEmpty) {
-        try {
-          await _notificationService.cancelAllNotifications();
-        } catch (e) {
+        try {} catch (e) {
           print('⚠️ Failed to cancel notifications: $e');
         }
       }
@@ -691,47 +650,62 @@ class EnhancedMedicationService {
       print('📋 Medications already taken today: $takenMedications');
 
       for (final schedule in schedules) {
-        if (schedule.uid == uid && schedule.notification && schedule.isActive) {
-          // Skip if medication was already taken today
-          if (takenMedications.contains(schedule.id)) {
-            print(
-                '⏭️ Skipping ${schedule.medicationName} - already taken today');
-            continue;
-          }
-
-          // Parse time from string format "HH:MM"
-          final timeParts = schedule.time.split(':');
-          final reminderHour = int.tryParse(timeParts[0]) ?? 9;
-          final reminderMinute = int.tryParse(timeParts[1]) ?? 0;
-
-          final reminderTime = DateTime(
-            now.year,
-            now.month,
-            now.day,
-            reminderHour,
-            reminderMinute,
-          );
-
-          // Check if medication should be taken today based on frequency
-          bool shouldTakeToday = _shouldTakeMedicationToday(schedule, now);
-
-          if (shouldTakeToday) {
-            final reminderData = {
-              'id': schedule.id,
-              'medicationName': schedule.medicationName,
-              'dose': schedule.dose,
-              'medType': schedule.medType,
-              'reminderDateTime': reminderTime,
-              'isPending': reminderTime.isAfter(now),
-              'isOverdue': reminderTime.isBefore(now),
-              'frequency': schedule.frequency,
-              'notes': schedule.notes,
-            };
-            todaysReminders.add(reminderData);
-            print(
-                '✅ Added reminder for: ${schedule.medicationName} at ${schedule.time}');
-          }
+        if (schedule.uid != uid) {
+          print('⏭️ Skipping ${schedule.medicationName}: UID mismatch');
+          continue;
         }
+        if (!schedule.notification) {
+          print(
+              '⏭️ Skipping ${schedule.medicationName}: notification disabled');
+          continue;
+        }
+        if (!schedule.isActive) {
+          print('⏭️ Skipping ${schedule.medicationName}: not active');
+          continue;
+        }
+        // Skip if medication was already taken today
+        if (takenMedications.contains(schedule.id)) {
+          print('⏭️ Skipping ${schedule.medicationName}: already taken today');
+          continue;
+        }
+
+        // Parse time from string format "HH:MM"
+        final timeParts = schedule.time.split(':');
+        final reminderHour = int.tryParse(timeParts[0]) ?? 9;
+        final reminderMinute = int.tryParse(timeParts[1]) ?? 0;
+
+        final reminderTime = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          reminderHour,
+          reminderMinute,
+        );
+
+        // Check if medication should be taken today based on frequency
+        bool shouldTakeToday = _shouldTakeMedicationToday(schedule, now);
+        if (!shouldTakeToday) {
+          print(
+              '⏭️ Skipping ${schedule.medicationName}: shouldTakeToday=false, frequency=${schedule.frequency}, startDate=${schedule.startDate}, endDate=${schedule.endDate}');
+          continue;
+        }
+
+        final reminderData = {
+          'id': schedule.id,
+          'medicationName': schedule.medicationName,
+          'dose': schedule.dose,
+          'medType': schedule.medType,
+          'reminderDateTime': reminderTime,
+          'isPending': reminderTime.isAfter(now),
+          // Only overdue if more than 5 minutes have passed since scheduled time
+          'isOverdue':
+              now.isAfter(reminderTime.add(const Duration(minutes: 5))),
+          'frequency': schedule.frequency,
+          'notes': schedule.notes,
+        };
+        todaysReminders.add(reminderData);
+        print(
+            '✅ Added reminder for: ${schedule.medicationName} at ${schedule.time}');
       }
 
       // Sort by reminder time
@@ -755,18 +729,22 @@ class EnhancedMedicationService {
     try {
       final startDate = DateTime.parse(schedule.startDate);
       final endDate = DateTime.parse(schedule.endDate);
-
-      // Check if today is within the date range
-      if (now.isBefore(startDate) || now.isAfter(endDate)) {
+      final today = DateTime(now.year, now.month, now.day);
+      // Check if today is within the date range (inclusive)
+      if (today.isBefore(
+              DateTime(startDate.year, startDate.month, startDate.day)) ||
+          today.isAfter(DateTime(endDate.year, endDate.month, endDate.day))) {
         return false;
       }
-
       switch (schedule.frequency.toLowerCase()) {
         case 'daily':
           return true;
+        case 'once':
+          // Only show if today matches startDate (or endDate)
+          return today.isAtSameMomentAs(
+              DateTime(startDate.year, startDate.month, startDate.day));
         case 'weekly':
-          // For weekly, we need more context about which day of the week
-          // For now, assume it should be taken today
+          // For weekly, assume it should be taken today
           return true;
         case 'as needed':
           return true;
@@ -900,25 +878,26 @@ class EnhancedMedicationService {
         await _offlineService.initialize();
         final box = await Hive.openBox('medication_taken');
         final keysToDelete = <dynamic>[];
-        
+
         for (final key in box.keys) {
           if (key.toString().startsWith('${uid}_') &&
               key.toString().endsWith('_$dateKey')) {
             keysToDelete.add(key);
           }
         }
-        
+
         for (final key in keysToDelete) {
           await box.delete(key);
         }
-        print('✅ Cleared ${keysToDelete.length} taken records from local storage');
+        print(
+            '✅ Cleared ${keysToDelete.length} taken records from local storage');
       } catch (e) {
         print('⚠️ Failed to clear taken medications from local storage: $e');
       }
 
       // Re-schedule today's notifications since medications are no longer marked as taken
       await _scheduleTodaysPendingNotifications();
-      
+
       print('✅ Today\'s taken status cleared successfully');
     } catch (e) {
       print('❌ Error clearing today\'s taken status: $e');
@@ -927,32 +906,9 @@ class EnhancedMedicationService {
   }
 
   /// Verify that notifications were actually scheduled in the system
-  Future<void> _verifyScheduledNotifications(int? reminderId, int exactId, String medicationName) async {
-    try {
-      // Get all pending notifications
-      final pendingNotifications = await _notificationService.getPendingNotifications();
-      
-      // Check for 5-minute reminder
-      if (reminderId != null) {
-        final reminderExists = pendingNotifications.any((n) => n.id == reminderId);
-        if (reminderExists) {
-          print('✅ 5-minute reminder verified in system for $medicationName (ID: $reminderId)');
-        } else {
-          print('❌ 5-minute reminder NOT found in system for $medicationName (ID: $reminderId)');
-        }
-      }
-      
-      // Check for exact time notification
-      final exactExists = pendingNotifications.any((n) => n.id == exactId);
-      if (exactExists) {
-        print('✅ Exact time notification verified in system for $medicationName (ID: $exactId)');
-      } else {
-        print('❌ Exact time notification NOT found in system for $medicationName (ID: $exactId)');
-      }
-      
-      print('📋 Total pending notifications in system: ${pendingNotifications.length}');
-    } catch (e) {
-      print('⚠️ Could not verify scheduled notifications: $e');
-    }
+  Future<void> _verifyScheduledNotifications(
+      int? reminderId, int exactId, String medicationName) async {
+    // Pending notification verification removed (API no longer available)
+    // This function is now a placeholder.
   }
 }

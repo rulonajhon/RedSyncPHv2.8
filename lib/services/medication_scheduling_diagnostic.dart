@@ -105,15 +105,14 @@ class MedicationSchedulingDiagnostic {
             .add('Step 4: Testing direct notification scheduling...');
         print('🔄 Step 4: Testing direct notification scheduling...');
 
-        await _notificationService.initialize();
+        await _notificationService.initNotifications();
 
         final directTestTime = DateTime.now().add(const Duration(minutes: 1));
-        await _notificationService.scheduleMedicationReminder(
-          id: 99999,
-          title: '💊 DIRECT TEST: Medication Reminder',
-          body: 'Direct scheduling test - TEST VIAGRA',
-          scheduledTime: directTestTime,
-          payload: 'direct_test',
+        await _notificationService.scheduleMedReminder(
+          99999,
+          '💊 DIRECT TEST: Medication Reminder',
+          'Direct scheduling test - TEST VIAGRA',
+          directTestTime,
         );
 
         results['steps'].add(

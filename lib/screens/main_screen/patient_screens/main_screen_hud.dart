@@ -456,7 +456,10 @@ class _MainScreenDisplayState extends State<MainScreenDisplay> {
                                       Navigator.pushNamed(
                                         context,
                                         '/schedule_medication',
-                                      );
+                                      ).then((_) {
+                                        // After returning from schedule screen, refresh dashboard
+                                        setState(() {}); // Triggers rebuild
+                                      });
                                     },
                                   ),
                                   const SizedBox(height: 5),
