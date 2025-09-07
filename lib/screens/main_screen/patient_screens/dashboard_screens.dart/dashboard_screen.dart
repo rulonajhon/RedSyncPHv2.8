@@ -603,6 +603,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
           ),
         ),
       ),
+      // Removed debug floating action button for production release
     );
   }
 

@@ -47,10 +47,27 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Debug build settings - more permissive for development
+            isDebuggable = true
+            isMinifyEnabled = false
+            isShrinkResources = false
+            // Debug builds are signed with debug key automatically
+        }
         release {
-            // TODO: Add your own signing config for the release build.
+            // Release build settings - optimized for production
+            isDebuggable = false
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // Disable code shrinking and obfuscation to prevent notification crashes
+            isMinifyEnabled = false
+            isShrinkResources = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            
+            // Release-specific optimizations
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
         }
     }
 }

@@ -36,10 +36,10 @@ void main() async {
     // Step 4: Test immediate notification
     print('\n🧪 STEP 4: Testing immediate notification...');
     await notificationService.scheduleMedReminder(
-      999999,
-      '🧪 Immediate Test',
-      'This should appear immediately',
-      DateTime.now().add(const Duration(seconds: 5)),
+      id: 999999,
+      title: '🧪 Immediate Test',
+      body: 'This should appear immediately',
+      scheduledDate: DateTime.now().add(const Duration(seconds: 5)),
     );
     print('✅ Immediate notification scheduled for 5 seconds from now');
 
@@ -47,10 +47,10 @@ void main() async {
     print('\n⏰ STEP 5: Testing 1-minute scheduled notification...');
     final oneMinuteTime = DateTime.now().add(const Duration(minutes: 1));
     await notificationService.scheduleMedReminder(
-      777777,
-      '⏰ 1-Minute Test',
-      'This should appear in 1 minute',
-      oneMinuteTime,
+      id: 777777,
+      title: '⏰ 1-Minute Test',
+      body: 'This should appear in 1 minute',
+      scheduledDate: oneMinuteTime,
     );
     print('✅ 1-minute notification scheduled for: $oneMinuteTime');
 
@@ -58,10 +58,10 @@ void main() async {
     print('\n⏰ STEP 6: Testing 2-minute scheduled notification...');
     final twoMinuteTime = DateTime.now().add(const Duration(minutes: 2));
     await notificationService.scheduleMedReminder(
-      777778,
-      '⏰ 2-Minute Test',
-      'This should appear in 2 minutes',
-      twoMinuteTime,
+      id: 777778,
+      title: '⏰ 2-Minute Test',
+      body: 'This should appear in 2 minutes',
+      scheduledDate: twoMinuteTime,
     );
     print('✅ 2-minute notification scheduled for: $twoMinuteTime');
 

@@ -109,10 +109,10 @@ class MedicationSchedulingDiagnostic {
 
         final directTestTime = DateTime.now().add(const Duration(minutes: 1));
         await _notificationService.scheduleMedReminder(
-          99999,
-          '💊 DIRECT TEST: Medication Reminder',
-          'Direct scheduling test - TEST VIAGRA',
-          directTestTime,
+          id: 99999,
+          title: '💊 DIRECT TEST: Medication Reminder',
+          body: 'Direct scheduling test - TEST VIAGRA',
+          scheduledDate: directTestTime,
         );
 
         results['steps'].add(

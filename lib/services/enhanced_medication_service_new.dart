@@ -168,37 +168,17 @@ class EnhancedMedicationService {
 
           if (scheduleDate.isAfter(DateTime.now())) {
             try {
-              // 1. Schedule 5-minute reminder notification
-              final reminderTime =
-                  scheduleDate.subtract(const Duration(minutes: 5));
-              if (reminderTime.isAfter(DateTime.now())) {
-                final reminderId = int.parse(
-                    '${schedule.id.hashCode.abs()}${date.millisecondsSinceEpoch}'
-                        .substring(0, 9));
-
-                await NotificationService().scheduleMedReminder(
-                  reminderId,
-                  '⏰ Medication Reminder',
-                  'Take ${schedule.medicationName} (${schedule.dose}) in 5 minutes',
-                  reminderTime,
-                );
-
-                notificationIds.add(
-                    '${schedule.id}_reminder_${date.millisecondsSinceEpoch}');
-                print(
-                    '📱 5-min reminder scheduled for ${schedule.medicationName} at $reminderTime');
-              }
-
-              // 2. Schedule exact time notification
+              // Schedule only the exact time notification (no 5-minute reminder)
               final exactId = int.parse(
                   '${schedule.id.hashCode.abs()}${date.millisecondsSinceEpoch}1'
                       .substring(0, 9));
 
               await NotificationService().scheduleMedReminder(
-                exactId,
-                '💊 Time for ${schedule.medicationName}',
-                'Take ${schedule.medicationName} (${schedule.dose}) NOW',
-                scheduleDate,
+                id: exactId,
+                title: '💊 Time for Your Medication',
+                body:
+                    'Hi! It\'s time to take your ${schedule.medicationName} (${schedule.dose}). Take care! ❤️',
+                scheduledDate: scheduleDate,
               );
 
               notificationIds
@@ -206,8 +186,7 @@ class EnhancedMedicationService {
               print(
                   '📱 Exact time notification scheduled for ${schedule.medicationName} at $scheduleDate');
             } catch (e) {
-              print(
-                  '⚠️ Failed to schedule notifications for $scheduleDate: $e');
+              print('⚠️ Failed to schedule notification for $scheduleDate: $e');
             }
           }
         }

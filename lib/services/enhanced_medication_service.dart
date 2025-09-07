@@ -65,33 +65,7 @@ class EnhancedMedicationService {
 
         // Only schedule if the medication time is still in the future
         if (reminderTime.isAfter(now)) {
-          // Schedule 5-minute advance notification
-          final reminderAdvanceTime =
-              reminderTime.subtract(const Duration(minutes: 5)).toLocal();
-          if (reminderAdvanceTime.isAfter(now)) {
-            try {
-              final reminderId = int.parse(
-                  '${scheduleId.hashCode.abs()}${reminderTime.millisecondsSinceEpoch}'
-                      .substring(0, 9));
-              print(
-                  '🔔 [DEBUG] Scheduling 5-min advance notification for $medicationName at $reminderAdvanceTime');
-              await NotificationService().scheduleMedReminder(
-                reminderId,
-                '⏰ Gentle Reminder',
-                'It\'s almost time for your $medicationName ($dose). Please prepare to take it in 5 minutes.',
-                reminderAdvanceTime,
-              );
-              print(
-                  '📱 [DEBUG] 5-min advance notification scheduled for $medicationName at $reminderAdvanceTime');
-            } catch (e) {
-              print(
-                  '⚠️ [DEBUG] Failed to schedule 5-min reminder for $medicationName: $e');
-            }
-          } else {
-            print('⏭️ [DEBUG] 5-min reminder time passed for $medicationName');
-          }
-
-          // Schedule exact time notification
+          // Schedule only the exact time notification (no 5-minute advance reminder)
           try {
             final exactId = int.parse(
                 '${scheduleId.hashCode.abs()}${reminderTime.millisecondsSinceEpoch}1'
@@ -99,10 +73,11 @@ class EnhancedMedicationService {
             print(
                 '🔔 [DEBUG] Scheduling exact time notification for $medicationName at $reminderTime');
             await NotificationService().scheduleMedReminder(
-              exactId,
-              '💊 Time for $medicationName',
-              'Please take your $medicationName ($dose) now. Thank you for staying on track with your medication schedule.',
-              reminderTime,
+              id: exactId,
+              title: '💊 Time for Your Medication',
+              body:
+                  'Hi! It\'s time to take your $medicationName ($dose). Take care! ❤️',
+              scheduledDate: reminderTime,
             );
             print(
                 '📱 [DEBUG] Exact time notification scheduled for $medicationName at $reminderTime');
@@ -280,10 +255,11 @@ class EnhancedMedicationService {
               print(
                   '🔔 DEBUG: Scheduling exact time notification with ID: $exactId');
               await NotificationService().scheduleMedReminder(
-                exactId,
-                '💊 Time for ${schedule.medicationName}',
-                'Please take your ${schedule.medicationName} (${schedule.dose}) now.',
-                scheduleDate,
+                id: exactId,
+                title: '💊 Time for Your Medication',
+                body:
+                    'Hi! It\'s time to take your ${schedule.medicationName} (${schedule.dose}). Take care! ❤️',
+                scheduledDate: scheduleDate,
               );
 
               notificationIds
