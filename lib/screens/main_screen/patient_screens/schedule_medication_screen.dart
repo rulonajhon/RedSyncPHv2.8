@@ -128,7 +128,7 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
                       icon: Icons.medical_services_outlined,
                       hintText: 'e.g., Factor VIII, Desmopressin',
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
 
                     _buildDropdownField(
                       value: _medType,
@@ -139,7 +139,7 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
                         if (val != null) setState(() => _medType = val);
                       },
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
 
                     _buildCustomInput(
                       controller: _doseController,
@@ -147,10 +147,10 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
                       icon: Icons.colorize,
                       hintText: 'e.g., 1000 IU, 250 mg',
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
 
                     _buildTimeSelector(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
 
                     _buildDropdownField(
                       value: _frequency,
@@ -161,13 +161,10 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
                         if (val != null) setState(() => _frequency = val);
                       },
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
 
                     _buildDateSelector(),
-                    const SizedBox(height: 16),
-
-                    _buildNotificationToggle(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
 
                     Container(
                       decoration: BoxDecoration(
@@ -192,7 +189,10 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 8),
+
+                    _buildNotificationToggle(),
+                    const SizedBox(height: 16),
 
                     // Set Schedule Button
                     SizedBox(

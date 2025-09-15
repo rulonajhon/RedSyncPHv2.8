@@ -1028,6 +1028,7 @@ class _LogBleedState extends State<LogBleed> {
                   Expanded(
                     child: PageView(
                       controller: _pageController,
+                      physics: const NeverScrollableScrollPhysics(),
                       onPageChanged: (page) =>
                           setState(() => _currentPage = page),
                       children: [

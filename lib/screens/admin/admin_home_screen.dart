@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../services/community_service.dart';
 import '../../services/post_reports_service.dart';
+import '../../utils/post_reports_test_helper.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   final Function(int) onTabChanged;
@@ -99,6 +100,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
               // Quick Stats Section
               _buildQuickStats(),
+              const SizedBox(height: 32),
+
+              // Debug Section (for testing reports)
+              _buildDebugSection(),
               const SizedBox(height: 32),
 
               // Recent Requests Section
@@ -485,6 +490,100 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
+  // Debug section for testing post reports
+  Widget _buildDebugSection() {
+    return _buildSection(
+      title: 'Debug Tools',
+      icon: FontAwesomeIcons.bug,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.orange.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Post Reports Testing',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.orange.shade800,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        await PostReportsTestHelper.createSampleReports();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('✅ Sample reports created!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      },
+                      icon: const Icon(FontAwesomeIcons.plus, size: 16),
+                      label: const Text('Create Test Reports'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        await PostReportsTestHelper.debugReportsInDatabase();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('🔍 Check console for debug info'),
+                            backgroundColor: Colors.blue,
+                          ),
+                        );
+                      },
+                      icon: const Icon(FontAwesomeIcons.magnifyingGlass,
+                          size: 16),
+                      label: const Text('Debug Reports'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.orange,
+                        side: BorderSide(color: Colors.orange.shade300),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  await PostReportsTestHelper.clearTestReports();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('🧹 Test reports cleared!'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                },
+                icon: const Icon(FontAwesomeIcons.trash, size: 16),
+                label: const Text('Clear Test Reports'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   // Helper methods for time-based greetings
   String _getTimeOfDay() {
     final hour = DateTime.now().hour;
@@ -499,5 +598,4 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     if (hour < 17) return FontAwesomeIcons.cloudSun;
     return FontAwesomeIcons.moon;
   }
-
 }

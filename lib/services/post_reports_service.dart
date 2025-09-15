@@ -7,18 +7,33 @@ class PostReportsService {
 
   // Get all post reports with real-time updates
   Stream<List<Map<String, dynamic>>> getPostReportsStream() {
-    print('PostReportsService: Starting to stream all post reports');
+    print('🚨 [POST_REPORTS] Starting to stream all post reports');
     return _firestore
         .collection('post_reports')
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
       print(
-          'PostReportsService: Received ${snapshot.docs.length} post reports from Firestore');
+          '🚨 [POST_REPORTS] Received ${snapshot.docs.length} post reports from Firestore');
+
+      // Debug: Check if collection exists by trying a simple get
+      if (snapshot.docs.isEmpty) {
+        print('🚨 [POST_REPORTS] No documents found. Checking collection...');
+        _firestore.collection('post_reports').get().then((testSnapshot) {
+          print(
+              '🚨 [POST_REPORTS] Direct collection check: ${testSnapshot.docs.length} docs total');
+          for (var doc in testSnapshot.docs) {
+            final data = doc.data();
+            print(
+                '🚨 [POST_REPORTS] Found doc: ${doc.id} - status: ${data['status']}');
+          }
+        });
+      }
+
       for (var doc in snapshot.docs) {
         final data = doc.data();
         print(
-            'PostReport: ${doc.id} - postId: ${data['postId']}, status: ${data['status']}, reason: ${data['reason']}');
+            '🚨 [POST_REPORTS] PostReport: ${doc.id} - postId: ${data['postId']}, status: ${data['status']}, reason: ${data['reason']}');
       }
       return snapshot.docs.map((doc) {
         final data = doc.data();
@@ -45,16 +60,38 @@ class PostReportsService {
   // Get reports by status
   Stream<List<Map<String, dynamic>>> getReportsByStatus(String status) {
     print(
-        'PostReportsService: Starting to stream post reports with status: $status');
+        '🚨 [POST_REPORTS] Starting to stream post reports with status: $status');
     return _firestore
         .collection('post_reports')
         .where('status', isEqualTo: status)
-        .orderBy('timestamp', descending: true)
+        // Remove orderBy to avoid composite index requirement
         .snapshots()
         .map((snapshot) {
       print(
-          'PostReportsService: Received ${snapshot.docs.length} post reports with status "$status" from Firestore');
-      return snapshot.docs.map((doc) {
+          '🚨 [POST_REPORTS] Received ${snapshot.docs.length} post reports with status "$status" from Firestore');
+
+      // If no pending reports found, check what statuses exist
+      if (status == 'pending' && snapshot.docs.isEmpty) {
+        print(
+            '🚨 [POST_REPORTS] No pending reports found. Checking all statuses...');
+        _firestore.collection('post_reports').get().then((allSnapshot) {
+          final statusCounts = <String, int>{};
+          for (var doc in allSnapshot.docs) {
+            final docStatus = doc.data()['status'] ?? 'pending';
+            statusCounts[docStatus] = (statusCounts[docStatus] ?? 0) + 1;
+          }
+          print('🚨 [POST_REPORTS] Status breakdown: $statusCounts');
+        });
+      }
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        print(
+            '🚨 [POST_REPORTS] Found ${status} report: ${doc.id} - reason: ${data['reason']}');
+      }
+
+      // Convert to list and sort manually to avoid composite index requirement
+      final reports = snapshot.docs.map((doc) {
         final data = doc.data();
         return {
           'id': doc.id,
@@ -73,6 +110,20 @@ class PostReportsService {
           'adminNotes': data['adminNotes'] ?? '',
         };
       }).toList();
+
+      // Sort by timestamp (most recent first) to maintain order
+      reports.sort((a, b) {
+        final timestampA = a['timestamp'] as Timestamp?;
+        final timestampB = b['timestamp'] as Timestamp?;
+
+        if (timestampA == null && timestampB == null) return 0;
+        if (timestampA == null) return 1;
+        if (timestampB == null) return -1;
+
+        return timestampB.compareTo(timestampA); // Descending order
+      });
+
+      return reports;
     });
   }
 

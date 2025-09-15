@@ -179,6 +179,7 @@ class OfflineService {
     required String date,
     required String time,
     required String notes,
+    String lotNumber = '',
   }) async {
     try {
       await initialize();
@@ -193,6 +194,7 @@ class OfflineService {
         date: date,
         time: time,
         notes: notes,
+        lotNumber: lotNumber,
         uid: user.uid,
         createdAt: DateTime.now(),
         needsSync: true,
@@ -406,6 +408,7 @@ class OfflineService {
             date: log.date,
             time: log.time,
             notes: log.notes,
+            lotNumber: log.lotNumber,
             customId: log.id, // Pass the offline ID to prevent duplicates
           );
 
@@ -477,6 +480,7 @@ class OfflineService {
                 dateTime.toString().split(' ')[0], // Use string format
             time: logData['time'] ?? '',
             notes: logData['notes'] ?? '',
+            lotNumber: logData['lotNumber'] ?? '',
             createdAt: dateTime,
             needsSync: false,
             syncedAt: DateTime.now(),

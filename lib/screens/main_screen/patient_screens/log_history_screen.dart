@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:table_calendar/table_calendar.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../services/offline_service.dart';
 import '../../../services/firestore.dart';
 import '../../../widgets/offline_indicator.dart';
@@ -89,6 +91,7 @@ class _LogHistoryScreenState extends State<LogHistoryScreen>
                 'time': log.time,
                 'medication': log.medication,
                 'doseIU': log.doseIU,
+                'lotNumber': log.lotNumber,
                 'notes': log.notes,
                 'createdAt': log.createdAt,
                 'isOffline': true,
@@ -197,33 +200,451 @@ class _LogHistoryScreenState extends State<LogHistoryScreen>
     }
   }
 
-  /// Force sync and refresh all data
-  Future<void> _forceRefresh() async {
-    try {
-      // Force sync with online database
-      await _offlineService.syncAllData();
+  /// Show calendar modal with bleeding episodes and infusions
+  void _showCalendarModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildCalendarModal(),
+    );
+  }
 
-      // Reload all data
-      await _loadData();
+  Widget _buildCalendarModal() {
+    DateTime selectedDay = DateTime.now();
+    DateTime focusedDay = DateTime.now();
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Data refreshed successfully!'),
-            backgroundColor: Colors.green,
+    return StatefulBuilder(
+      builder: (context, setModalState) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    const Icon(
+                      FontAwesomeIcons.calendar,
+                      color: Colors.amber,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Health Calendar',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                      color: Colors.grey.shade600,
+                    ),
+                  ],
+                ),
+              ),
+
+              // Calendar
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: TableCalendar<Map<String, dynamic>>(
+                    firstDay: DateTime.utc(2020, 1, 1),
+                    lastDay: DateTime.utc(2030, 12, 31),
+                    focusedDay: focusedDay,
+                    selectedDayPredicate: (day) => isSameDay(selectedDay, day),
+                    eventLoader: _getEventsForDay,
+                    startingDayOfWeek: StartingDayOfWeek.monday,
+                    calendarStyle: CalendarStyle(
+                      outsideDaysVisible: false,
+                      weekendTextStyle: const TextStyle(color: Colors.red),
+                      holidayTextStyle: const TextStyle(color: Colors.blue),
+                      selectedDecoration: BoxDecoration(
+                        color: Colors.amber,
+                        shape: BoxShape.circle,
+                      ),
+                      todayDecoration: BoxDecoration(
+                        color: Colors.amber.shade200,
+                        shape: BoxShape.circle,
+                      ),
+                      markersMaxCount: 3,
+                      markerDecoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    headerStyle: const HeaderStyle(
+                      formatButtonVisible: false,
+                      titleCentered: true,
+                      leftChevronIcon: Icon(
+                        Icons.chevron_left,
+                        color: Colors.amber,
+                      ),
+                      rightChevronIcon: Icon(
+                        Icons.chevron_right,
+                        color: Colors.amber,
+                      ),
+                    ),
+                    onDaySelected: (newSelectedDay, newFocusedDay) {
+                      setModalState(() {
+                        selectedDay = newSelectedDay;
+                        focusedDay = newFocusedDay;
+                      });
+                    },
+                    calendarBuilders: CalendarBuilders(
+                      markerBuilder: (context, day, events) {
+                        if (events.isNotEmpty) {
+                          return _buildEventMarkers(events);
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              // Legend
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildLegendItem(
+                          color: Colors.red.shade400,
+                          icon: FontAwesomeIcons.droplet,
+                          label: 'Bleeding',
+                        ),
+                        SizedBox(
+                          width: 5,
+                        ),
+                        _buildLegendItem(
+                          color: Colors.blue.shade400,
+                          icon: FontAwesomeIcons.syringe,
+                          label: 'Infusion',
+                        ),
+                        SizedBox(
+                          width: 5,
+                        ),
+                        _buildLegendItem(
+                          color: Colors.purple.shade400,
+                          icon: FontAwesomeIcons.calendarDay,
+                          label: 'Both Events',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+              // Selected day events
+              if (_getEventsForDay(selectedDay).isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Events on ${selectedDay.day}/${selectedDay.month}/${selectedDay.year}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ..._getEventsForDay(selectedDay).map(
+                        (event) => _buildEventItem(event),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 20),
+            ],
           ),
         );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error refreshing data'),
-            backgroundColor: Colors.red,
+      },
+    );
+  }
+
+  Widget _buildLegendItem({
+    required Color color,
+    required IconData icon,
+    required String label,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
           ),
-        );
+        ),
+        const SizedBox(width: 8),
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey.shade700,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEventMarkers(List<Map<String, dynamic>> events) {
+    final hasBleed = events.any((e) => e['type'] == 'bleed');
+    final hasInfusion = events.any((e) => e['type'] == 'infusion');
+    final hasBoth = hasBleed && hasInfusion;
+
+    return Positioned(
+      bottom: 1,
+      right: 1,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (hasBoth)
+            // Show purple marker for both events
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: Colors.purple.shade400,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1),
+              ),
+            )
+          else ...[
+            // Show individual markers
+            if (hasBleed)
+              Container(
+                width: 6,
+                height: 6,
+                margin: const EdgeInsets.only(right: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade400,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            if (hasInfusion)
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade400,
+                  shape: BoxShape.circle,
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEventItem(Map<String, dynamic> event) {
+    final isBleed = event['type'] == 'bleed';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            isBleed ? FontAwesomeIcons.droplet : FontAwesomeIcons.syringe,
+            size: 14,
+            color: isBleed ? Colors.red.shade400 : Colors.blue.shade400,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              isBleed
+                  ? '${event['bodyRegion']} - ${event['severity']}'
+                  : '${event['medication']} - ${event['doseIU']}IU',
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+          Text(
+            event['time'] ?? '',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
+    final events = <Map<String, dynamic>>[];
+
+    // Format day as string for comparison
+    final dayStr =
+        '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+
+    // Debug: Print what we're looking for and what we have
+    print('Looking for events on: $dayStr');
+    print('Bleed logs count: ${_bleedLogs.length}');
+    print('Infusion logs count: ${_infusionLogs.length}');
+
+    // Debug: Print first few bleed log dates to see format
+    if (_bleedLogs.isNotEmpty) {
+      print('Sample bleed log dates:');
+      for (int i = 0; i < _bleedLogs.length && i < 3; i++) {
+        print(
+            '  Bleed $i: date="${_bleedLogs[i]['date']}", createdAt="${_bleedLogs[i]['createdAt']}"');
       }
     }
+
+    // Add bleed events
+    for (final log in _bleedLogs) {
+      final logDate = log['date']?.toString();
+
+      // Try to parse different date formats
+      bool matchesDay = false;
+
+      if (logDate != null) {
+        // Direct format matches
+        if (logDate == dayStr ||
+            logDate == '${day.year}-${day.month}-${day.day}' ||
+            logDate == '${day.day}/${day.month}/${day.year}' ||
+            logDate == '${day.month}/${day.day}/${day.year}') {
+          matchesDay = true;
+        } else {
+          // Try parsing "Sep 15, 2025" format
+          try {
+            final parsedDate = DateTime.tryParse(logDate);
+            if (parsedDate != null) {
+              final parsedStr =
+                  '${parsedDate.year}-${parsedDate.month.toString().padLeft(2, '0')}-${parsedDate.day.toString().padLeft(2, '0')}';
+              if (parsedStr == dayStr) {
+                matchesDay = true;
+              }
+            } else {
+              // Try parsing "Sep 15, 2025" format manually
+              final monthNames = {
+                'Jan': 1,
+                'Feb': 2,
+                'Mar': 3,
+                'Apr': 4,
+                'May': 5,
+                'Jun': 6,
+                'Jul': 7,
+                'Aug': 8,
+                'Sep': 9,
+                'Oct': 10,
+                'Nov': 11,
+                'Dec': 12
+              };
+
+              final parts = logDate.split(' ');
+              if (parts.length == 3) {
+                final monthName = parts[0];
+                final dayPart = parts[1].replaceAll(',', '');
+                final yearPart = parts[2];
+
+                final month = monthNames[monthName];
+                final dayNum = int.tryParse(dayPart);
+                final year = int.tryParse(yearPart);
+
+                if (month != null && dayNum != null && year != null) {
+                  if (year == day.year &&
+                      month == day.month &&
+                      dayNum == day.day) {
+                    matchesDay = true;
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            // Ignore parsing errors
+          }
+        }
+      }
+
+      if (matchesDay) {
+        events.add({
+          ...log,
+          'type': 'bleed',
+        });
+        print('✅ Added bleed event: ${log['bodyRegion']} on $logDate');
+      } else {
+        print('❌ Bleed log date "$logDate" does not match "$dayStr"');
+      }
+    }
+
+    // Add infusion events
+    for (final log in _infusionLogs) {
+      final logDate = log['date']?.toString();
+
+      // Try to parse different date formats
+      bool matchesDay = false;
+
+      if (logDate != null) {
+        // Direct format matches
+        if (logDate == dayStr ||
+            logDate == '${day.year}-${day.month}-${day.day}' ||
+            logDate == '${day.day}/${day.month}/${day.year}' ||
+            logDate == '${day.month}/${day.day}/${day.year}') {
+          matchesDay = true;
+        } else {
+          // Try parsing other date formats
+          try {
+            final parsedDate = DateTime.tryParse(logDate);
+            if (parsedDate != null) {
+              final parsedStr =
+                  '${parsedDate.year}-${parsedDate.month.toString().padLeft(2, '0')}-${parsedDate.day.toString().padLeft(2, '0')}';
+              if (parsedStr == dayStr) {
+                matchesDay = true;
+              }
+            }
+          } catch (e) {
+            // Ignore parsing errors
+          }
+        }
+      }
+
+      if (matchesDay) {
+        events.add({
+          ...log,
+          'type': 'infusion',
+        });
+        print('✅ Added infusion event: ${log['medication']} on $logDate');
+      }
+    }
+
+    return events;
   }
 
   @override
@@ -244,9 +665,9 @@ class _LogHistoryScreenState extends State<LogHistoryScreen>
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh data',
-            onPressed: _forceRefresh,
+            icon: const Icon(FontAwesomeIcons.calendar),
+            tooltip: 'View calendar',
+            onPressed: _showCalendarModal,
           ),
         ],
         bottom: TabBar(
@@ -603,61 +1024,64 @@ class _LogHistoryScreenState extends State<LogHistoryScreen>
         tooltip: 'Add New Log',
         onPressed: () {
           showModalBottomSheet(
+            backgroundColor: Colors.white,
             context: context,
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
             builder: (context) {
-              return Container(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade400,
-                        borderRadius: BorderRadius.circular(2),
+              return SafeArea(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade400,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Add New Log',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Add New Log',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    _buildActionTile(
-                      icon: Icons.bloodtype,
-                      title: 'Log New Bleeding Episode',
-                      subtitle: 'Record a new bleeding incident',
-                      color: Colors.redAccent,
-                      onTap: () async {
-                        Navigator.pop(context);
-                        await Navigator.pushNamed(context, '/log_bleed');
-                        // Refresh data when returning from adding a new log
-                        _loadData();
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                    _buildActionTile(
-                      icon: Icons.medical_services,
-                      title: 'Log New Infusion Taken',
-                      subtitle: 'Record treatment administration',
-                      color: Colors.green,
-                      onTap: () async {
-                        Navigator.pop(context);
-                        await Navigator.pushNamed(context, '/log_infusion');
-                        // Refresh data when returning from adding a new log
-                        _loadData();
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+                      const SizedBox(height: 10),
+                      _buildActionTile(
+                        icon: Icons.bloodtype,
+                        title: 'Log New Bleeding Episode',
+                        subtitle: 'Record a new bleeding incident',
+                        color: Colors.redAccent,
+                        onTap: () async {
+                          Navigator.pop(context);
+                          await Navigator.pushNamed(context, '/log_bleed');
+                          // Refresh data when returning from adding a new log
+                          _loadData();
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      _buildActionTile(
+                        icon: Icons.medical_services,
+                        title: 'Log New Infusion Taken',
+                        subtitle: 'Record treatment administration',
+                        color: Colors.green,
+                        onTap: () async {
+                          Navigator.pop(context);
+                          await Navigator.pushNamed(context, '/log_infusion');
+                          // Refresh data when returning from adding a new log
+                          _loadData();
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
                 ),
               );
             },
@@ -1229,6 +1653,9 @@ class _LogHistoryScreenState extends State<LogHistoryScreen>
                           'label': 'Dose (IU)',
                           'value': '${log['doseIU'] ?? '0'} IU'
                         },
+                        if (log['lotNumber'] != null &&
+                            log['lotNumber'].toString().isNotEmpty)
+                          {'label': 'Lot Number', 'value': log['lotNumber']},
                         if (log['reason'] != null &&
                             log['reason'].toString().isNotEmpty)
                           {'label': 'Reason', 'value': log['reason']},

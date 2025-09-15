@@ -19,7 +19,7 @@ class _AdminPostReportsScreenState extends State<AdminPostReportsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -47,7 +47,6 @@ class _AdminPostReportsScreenState extends State<AdminPostReportsScreen>
           indicatorColor: Colors.redAccent,
           tabs: const [
             Tab(text: 'All Reports'),
-            Tab(text: 'Pending'),
             Tab(text: 'Reviewed'),
           ],
         ),
@@ -56,7 +55,6 @@ class _AdminPostReportsScreenState extends State<AdminPostReportsScreen>
         controller: _tabController,
         children: [
           _buildReportsTab('all'),
-          _buildReportsTab('pending'),
           _buildReportsTab('reviewed'),
         ],
       ),
@@ -67,9 +65,6 @@ class _AdminPostReportsScreenState extends State<AdminPostReportsScreen>
     Stream<List<Map<String, dynamic>>> stream;
 
     switch (filter) {
-      case 'pending':
-        stream = _reportsService.getReportsByStatus('pending');
-        break;
       case 'reviewed':
         // Combine approved and dismissed reports for reviewed tab
         stream = _reportsService.getPostReportsStream().map((allReports) {
@@ -153,11 +148,9 @@ class _AdminPostReportsScreenState extends State<AdminPostReportsScreen>
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  filter == 'pending'
-                      ? 'No pending reports'
-                      : filter == 'reviewed'
-                          ? 'No reviewed reports'
-                          : 'No reports found',
+                  filter == 'reviewed'
+                      ? 'No reviewed reports'
+                      : 'No reports found',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -166,11 +159,9 @@ class _AdminPostReportsScreenState extends State<AdminPostReportsScreen>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  filter == 'pending'
-                      ? 'All reports have been reviewed'
-                      : filter == 'reviewed'
-                          ? 'No reports have been reviewed yet'
-                          : 'No posts have been reported',
+                  filter == 'reviewed'
+                      ? 'No reports have been reviewed yet'
+                      : 'No posts have been reported',
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
               ],

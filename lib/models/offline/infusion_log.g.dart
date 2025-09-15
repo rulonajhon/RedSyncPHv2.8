@@ -23,17 +23,18 @@ class InfusionLogAdapter extends TypeAdapter<InfusionLog> {
       date: fields[3] as String,
       time: fields[4] as String,
       notes: fields[5] as String,
-      uid: fields[6] as String,
-      createdAt: fields[7] as DateTime,
-      syncedAt: fields[8] as DateTime?,
-      needsSync: fields[9] as bool,
+      lotNumber: fields[6] as String,
+      uid: fields[7] as String,
+      createdAt: fields[8] as DateTime,
+      syncedAt: fields[9] as DateTime?,
+      needsSync: fields[10] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, InfusionLog obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,12 +48,14 @@ class InfusionLogAdapter extends TypeAdapter<InfusionLog> {
       ..writeByte(5)
       ..write(obj.notes)
       ..writeByte(6)
-      ..write(obj.uid)
+      ..write(obj.lotNumber)
       ..writeByte(7)
-      ..write(obj.createdAt)
+      ..write(obj.uid)
       ..writeByte(8)
-      ..write(obj.syncedAt)
+      ..write(obj.createdAt)
       ..writeByte(9)
+      ..write(obj.syncedAt)
+      ..writeByte(10)
       ..write(obj.needsSync);
   }
 

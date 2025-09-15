@@ -1091,6 +1091,7 @@ class FirestoreService {
     required String date,
     required String time,
     required String notes,
+    String lotNumber = '',
     String? customId, // Add custom ID parameter
   }) async {
     try {
@@ -1101,6 +1102,7 @@ class FirestoreService {
         'date': date,
         'time': time,
         'notes': notes,
+        'lotNumber': lotNumber,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -1471,6 +1473,211 @@ class FirestoreService {
       };
     } catch (e) {
       print('Error getting admin statistics: $e');
+      rethrow;
+    }
+  }
+
+  // USER MANAGEMENT METHODS (ADMIN ONLY)
+
+  // Get all users with pagination
+  Stream<QuerySnapshot> getAllUsersStream() {
+    return _db
+        .collection('users')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  // Get users by role
+  Stream<QuerySnapshot> getUsersByRoleStream(String role) {
+    print('🔥 [FIRESTORE] Getting users by role: $role');
+
+    // First, let's test with a broader query to see what we have
+    _db.collection('users').get().then((allUsersSnapshot) {
+      print(
+          '🔥 [FIRESTORE] Total users in database: ${allUsersSnapshot.docs.length}');
+      allUsersSnapshot.docs.take(5).forEach((doc) {
+        final data = doc.data();
+        print(
+            '🔥 [FIRESTORE] User sample: ${data['name']} - Role: ${data['role']} (${data['email']})');
+      });
+    });
+
+    final query = _db.collection('users').where('role', isEqualTo: role);
+
+    print('🔥 [FIRESTORE] Query created for role: $role');
+
+    return query.snapshots().map((snapshot) {
+      print(
+          '🔥 [FIRESTORE] Query result for role $role: ${snapshot.docs.length} documents');
+      snapshot.docs.take(3).forEach((doc) {
+        final data = doc.data();
+        print('🔥 [FIRESTORE] Result: ${data['name']} - Role: ${data['role']}');
+      });
+      return snapshot;
+    });
+  }
+
+  // Delete a user account
+  Future<void> deleteUserAccount(String uid) async {
+    try {
+      // Delete user document
+      await _db.collection('users').doc(uid).delete();
+
+      // TODO: You might want to also delete related data:
+      // - User's posts in community
+      // - User's infusion logs
+      // - User's bleed logs
+      // - User's medication schedules
+      // - User's notifications
+      // For now, we'll just delete the user document
+
+      print('User account deleted: $uid');
+    } catch (e) {
+      print('Error deleting user account: $e');
+      rethrow;
+    }
+  }
+
+  // Update user role
+  Future<void> updateUserRole(String uid, String newRole) async {
+    try {
+      await _db.collection('users').doc(uid).update({
+        'role': newRole,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Create notification for user about role change
+      await createNotificationWithData(
+        uid: uid,
+        text:
+            'Your account role has been updated to $newRole by the administrator.',
+        type: 'role_updated',
+        data: {'newRole': newRole},
+      );
+
+      print('User role updated: $uid -> $newRole');
+    } catch (e) {
+      print('Error updating user role: $e');
+      rethrow;
+    }
+  }
+
+  // Ban/Unban user
+  Future<void> updateUserBanStatus(String uid, bool isBanned,
+      {String? reason}) async {
+    try {
+      final updateData = {
+        'isBanned': isBanned,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (isBanned && reason != null) {
+        updateData['banReason'] = reason;
+        updateData['bannedAt'] = FieldValue.serverTimestamp();
+      } else if (!isBanned) {
+        updateData['banReason'] = FieldValue.delete();
+        updateData['bannedAt'] = FieldValue.delete();
+      }
+
+      await _db.collection('users').doc(uid).update(updateData);
+
+      // Create notification for user
+      await createNotificationWithData(
+        uid: uid,
+        text: isBanned
+            ? 'Your account has been banned${reason != null ? ': $reason' : '.'}'
+            : 'Your account ban has been lifted.',
+        type: isBanned ? 'account_banned' : 'account_unbanned',
+        data: {'isBanned': isBanned, 'reason': reason},
+      );
+
+      print('User ban status updated: $uid -> banned: $isBanned');
+    } catch (e) {
+      print('Error updating user ban status: $e');
+      rethrow;
+    }
+  }
+
+  // Get user statistics for admin dashboard
+  Future<Map<String, int>> getUserStatistics() async {
+    try {
+      final usersSnapshot = await _db.collection('users').get();
+
+      int totalUsers = usersSnapshot.docs.length;
+      int patients = 0;
+      int caregivers = 0;
+      int medical = 0;
+      int admins = 0;
+      int banned = 0;
+
+      for (var doc in usersSnapshot.docs) {
+        final data = doc.data();
+        final role = data['role'] ?? 'patient';
+        final isBanned = data['isBanned'] ?? false;
+
+        if (isBanned) banned++;
+
+        switch (role) {
+          case 'patient':
+            patients++;
+            break;
+          case 'caregiver':
+            caregivers++;
+            break;
+          case 'medical':
+            medical++;
+            break;
+          case 'admin':
+            admins++;
+            break;
+        }
+      }
+
+      return {
+        'total': totalUsers,
+        'patients': patients,
+        'caregivers': caregivers,
+        'medical': medical,
+        'admins': admins,
+        'banned': banned,
+      };
+    } catch (e) {
+      print('Error getting user statistics: $e');
+      rethrow;
+    }
+  }
+
+  // Search users by name or email
+  Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    try {
+      query = query.toLowerCase().trim();
+
+      if (query.isEmpty) {
+        return [];
+      }
+
+      // Get all users and filter locally (Firestore doesn't support case-insensitive search)
+      final snapshot = await _db.collection('users').get();
+
+      final results = <Map<String, dynamic>>[];
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final name = (data['name'] ?? '').toString().toLowerCase();
+        final email = (data['email'] ?? '').toString().toLowerCase();
+
+        if (name.contains(query) || email.contains(query)) {
+          results.add({
+            'id': doc.id,
+            'uid': doc.id,
+            ...data,
+          });
+        }
+      }
+
+      return results;
+    } catch (e) {
+      print('Error searching users: $e');
       rethrow;
     }
   }

@@ -590,6 +590,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                             iconColor: _getActivityColor(
                               activity['activityType'],
                             ),
+                            onTap: () => _showActivityDetails(activity),
                           ),
                         ),
                       ),
@@ -631,7 +632,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
         Expanded(
           child: _buildStatContainer(
             icon: FontAwesomeIcons.calendar,
-            value: '${_monthlyActivitiesCount}',
+            value: '$_monthlyActivitiesCount',
             label: 'Activities This Month',
             color: Colors.blue,
           ),
@@ -766,8 +767,9 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     required String subtitle,
     required String time,
     required Color iconColor,
+    VoidCallback? onTap,
   }) {
-    return Container(
+    Widget content = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
@@ -806,11 +808,256 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
               ],
             ),
           ),
-          Text(
-            time,
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+          Row(
+            children: [
+              Text(
+                time,
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              ),
+              if (onTap != null) ...[
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.chevron_right,
+                  color: Colors.grey.shade400,
+                  size: 20,
+                ),
+              ],
+            ],
           ),
         ],
+      ),
+    );
+
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: content,
+      );
+    }
+
+    return content;
+  }
+
+  void _showActivityDetails(Map<String, dynamic> activity) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 10,
+                offset: Offset(0, -2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 20),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: _buildActivityDetailsContent(activity),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActivityDetailsContent(Map<String, dynamic> activity) {
+    final activityType = activity['activityType'];
+    final iconColor = _getActivityColor(activityType);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header with close button
+        Row(
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                _getActivityIcon(activityType),
+                color: iconColor,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _getActivityTitle(activityType),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatActivityTime(activity),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: Icon(
+                Icons.close,
+                color: Colors.grey.shade600,
+              ),
+              tooltip: 'Close',
+            ),
+          ],
+        ),
+        const SizedBox(height: 32),
+
+        // Details based on activity type
+        if (activityType == 'bleed') ..._buildBleedDetails(activity),
+        if (activityType == 'infusion') ..._buildInfusionDetails(activity),
+        if (activityType == 'calculation')
+          ..._buildCalculationDetails(activity),
+
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  List<Widget> _buildBleedDetails(Map<String, dynamic> activity) {
+    return [
+      _buildDetailRow('Body Region', activity['bodyRegion'] ?? 'Not specified'),
+      if (activity['specificRegion'] != null &&
+          activity['specificRegion'].toString().isNotEmpty)
+        _buildDetailRow('Specific Area', activity['specificRegion']),
+      _buildDetailRow('Severity', activity['severity'] ?? 'Not specified'),
+      _buildDetailRow('Date', activity['date'] ?? 'Not specified'),
+      if (activity['time'] != null && activity['time'].toString().isNotEmpty)
+        _buildDetailRow('Time', activity['time']),
+      if (activity['notes'] != null && activity['notes'].toString().isNotEmpty)
+        _buildDetailRow('Notes', activity['notes']),
+      // Legacy fields for backward compatibility
+      if (activity['treatment'] != null &&
+          activity['treatment'].toString().isNotEmpty)
+        _buildDetailRow('Treatment', activity['treatment']),
+      if (activity['factor'] != null)
+        _buildDetailRow('Factor Type', activity['factor']),
+    ];
+  }
+
+  List<Widget> _buildInfusionDetails(Map<String, dynamic> activity) {
+    return [
+      _buildDetailRow('Medication', activity['medication'] ?? 'Not specified'),
+      _buildDetailRow(
+          'Dose',
+          activity['dose'] ??
+              (activity['doseIU'] != null
+                  ? '${activity['doseIU']} IU'
+                  : 'Not specified')),
+      if (activity['lotNumber'] != null &&
+          activity['lotNumber'].toString().isNotEmpty)
+        _buildDetailRow('Lot Number', activity['lotNumber']),
+      _buildDetailRow('Date', activity['date'] ?? 'Not specified'),
+      if (activity['time'] != null && activity['time'].toString().isNotEmpty)
+        _buildDetailRow('Time', activity['time']),
+      if (activity['notes'] != null && activity['notes'].toString().isNotEmpty)
+        _buildDetailRow('Notes', activity['notes']),
+      // Legacy fields for backward compatibility
+      if (activity['reason'] != null &&
+          activity['reason'].toString().isNotEmpty)
+        _buildDetailRow('Reason', activity['reason']),
+      if (activity['injectionSite'] != null &&
+          activity['injectionSite'].toString().isNotEmpty)
+        _buildDetailRow('Injection Site', activity['injectionSite']),
+    ];
+  }
+
+  List<Widget> _buildCalculationDetails(Map<String, dynamic> activity) {
+    return [
+      _buildDetailRow(
+          'Hemophilia Type', activity['hemophiliaType'] ?? 'Unknown'),
+      _buildDetailRow('Calculated Dose',
+          '${(activity['calculatedDosage'] ?? 0).round()} IU'),
+      if (activity['weight'] != null)
+        _buildDetailRow('Weight', '${activity['weight']} kg'),
+      if (activity['targetLevel'] != null)
+        _buildDetailRow('Target Level', '${activity['targetLevel']}%'),
+      if (activity['baselineLevel'] != null)
+        _buildDetailRow('Baseline Level', '${activity['baselineLevel']}%'),
+      if (activity['bleedSeverity'] != null)
+        _buildDetailRow('Bleed Severity', activity['bleedSeverity']),
+    ];
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 100,
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                value.isEmpty ? 'Not specified' : value,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: value.isEmpty ? Colors.grey.shade500 : Colors.black87,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -890,6 +1137,19 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   Widget _buildSwipeableMedicationReminder(Map<String, dynamic> reminder) {
     return Slidable(
       key: ValueKey(reminder['id']),
+      startActionPane: ActionPane(
+        motion: const ScrollMotion(),
+        children: [
+          SlidableAction(
+            onPressed: (context) => _editMedicationReminder(reminder),
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            icon: Icons.edit,
+            label: 'Edit',
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ],
+      ),
       endActionPane: ActionPane(
         motion: const ScrollMotion(),
         children: [
@@ -1025,13 +1285,27 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
+                            Icons.swipe_right,
+                            size: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            'Edit',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 10,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
                             Icons.swipe_left,
                             size: 12,
                             color: Colors.grey.shade600,
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 2),
                           Text(
-                            'Swipe to mark done',
+                            'Done',
                             style: TextStyle(
                               color: Colors.grey.shade600,
                               fontSize: 10,
@@ -1080,6 +1354,46 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to mark medication as taken'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _editMedicationReminder(Map<String, dynamic> reminder) async {
+    try {
+      // Navigate to edit reminder screen
+      final result = await Navigator.pushNamed(
+        context,
+        '/edit_medication_reminder',
+        arguments: {
+          'reminder': reminder,
+          'medicationId': reminder['id'],
+        },
+      );
+
+      // If the reminder was updated, refresh the reminders list
+      if (result == true) {
+        await _loadTodaysReminders();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Reminder updated successfully!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error navigating to edit reminder: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to open edit screen: $e'),
           backgroundColor: Colors.red,
         ),
       );

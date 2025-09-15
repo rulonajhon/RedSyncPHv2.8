@@ -23,15 +23,18 @@ class InfusionLog extends HiveObject {
   String notes;
 
   @HiveField(6)
-  String uid;
+  String lotNumber;
 
   @HiveField(7)
-  DateTime createdAt;
+  String uid;
 
   @HiveField(8)
-  DateTime? syncedAt;
+  DateTime createdAt;
 
   @HiveField(9)
+  DateTime? syncedAt;
+
+  @HiveField(10)
   bool needsSync;
 
   InfusionLog({
@@ -41,6 +44,7 @@ class InfusionLog extends HiveObject {
     required this.date,
     required this.time,
     required this.notes,
+    required this.lotNumber,
     required this.uid,
     required this.createdAt,
     this.syncedAt,
@@ -54,6 +58,7 @@ class InfusionLog extends HiveObject {
       'date': date,
       'time': time,
       'notes': notes,
+      'lotNumber': lotNumber,
       'uid': uid,
       'createdAt': createdAt.toIso8601String(),
     };

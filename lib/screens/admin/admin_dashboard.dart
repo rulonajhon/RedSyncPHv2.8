@@ -8,6 +8,7 @@ import 'admin_home_screen.dart';
 import 'admin_approvals_screen.dart';
 import 'admin_events_screen.dart';
 import 'admin_post_reports_screen.dart';
+import 'admin_users_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -31,7 +32,7 @@ class _AdminDashboardState extends State<AdminDashboard>
       vsync: this,
     );
     _bottomTabController = TabController(
-      length: 4,
+      length: 5,
       vsync: this,
       initialIndex: 0,
     );
@@ -234,6 +235,10 @@ class _AdminDashboardState extends State<AdminDashboard>
                 icon: Icon(Icons.event, size: 24),
                 text: 'Events',
               ),
+              Tab(
+                icon: Icon(Icons.people, size: 24),
+                text: 'Users',
+              ),
             ],
           ),
         ),
@@ -285,6 +290,8 @@ class _AdminDashboardState extends State<AdminDashboard>
         return const AdminPostReportsScreen();
       case 3:
         return const AdminEventsScreen();
+      case 4:
+        return const AdminUsersScreen();
       default:
         return AdminHomeScreen(
           onTabChanged: (index) {

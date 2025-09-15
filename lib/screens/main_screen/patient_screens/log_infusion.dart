@@ -16,6 +16,7 @@ class _LogInfusionScreenState extends State<LogInfusionScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _medicationController = TextEditingController();
   final TextEditingController _doseController = TextEditingController();
+  final TextEditingController _lotNumberController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
@@ -32,6 +33,87 @@ class _LogInfusionScreenState extends State<LogInfusionScreen> {
     'Factor XI',
     'Desmopressin (DDAVP)',
     'Antifibrinolytic agents',
+    'Advate',
+    'Adynovate',
+    'Adynovi',
+    'Afstyla',
+    'Alhemo',
+    'Alphanate',
+    'Alpahanine SD',
+    'Alprolix',
+    'Altuviio',
+    'Altuvoct',
+    'Amicar',
+    'Atenativ',
+    'Benefix',
+    'Beriate',
+    'Betafact',
+    'Biostate',
+    'Clottafact',
+    'Coagadex',
+    'Confidex',
+    'Confact',
+    'Elocta',
+    'Eloctate',
+    'Esperoct',
+    'Factane',
+    'Fanhdi',
+    'Feiba',
+    'Feiba NF',
+    'Fibrogammin P',
+    'Fibryga',
+    'Fitusiran',
+    'Haemate P',
+    'Haemosolvate',
+    'Helixate FS',
+    'Helixate Nexgen',
+    'Hemlibra',
+    'Hemofil M',
+    'Hemoleven',
+    'Humate P',
+    'Hympavzi',
+    'Idelvon',
+    'Immunine',
+    'Immuseven',
+    'Ixnity',
+    'Jivi',
+    'Kanokad',
+    'Koate DVI',
+    'Kogenate Bayer',
+    'Kogenate FS',
+    'Kovaltry',
+    'Minirin',
+    'Monoclate P',
+    'Mononine',
+    'Novoeight',
+    'Novoseven',
+    'Novoseven RT',
+    'Novothirteen',
+    'Nuwiq',
+    'Obizur',
+    'Octafix',
+    'Octanate',
+    'Octanine',
+    'Octaplex',
+    'Octosim',
+    'Optivate',
+    'Qtifilia',
+    'Rebinyn',
+    'Recombinate',
+    'Refacto AF',
+    'Refixia',
+    'Riastap',
+    'Rixubis',
+    'Sevenfact',
+    'Stimate',
+    'Tretten',
+    'Veyvondi',
+    'Vonvendi',
+    'Wilate',
+    'Wilfactin',
+    'Xyntha',
+    'Xyntha Solofuse',
+    'Zonovate',
     'Other',
   ];
 
@@ -75,6 +157,7 @@ class _LogInfusionScreenState extends State<LogInfusionScreen> {
         date: dateStr,
         time: timeStr,
         notes: _notesController.text.trim(),
+        lotNumber: _lotNumberController.text.trim(),
         createdAt: DateTime.now(),
       );
 
@@ -85,6 +168,7 @@ class _LogInfusionScreenState extends State<LogInfusionScreen> {
         date: log.date,
         time: log.time,
         notes: log.notes,
+        lotNumber: log.lotNumber,
       );
 
       if (!mounted) return;
@@ -221,7 +305,7 @@ class _LogInfusionScreenState extends State<LogInfusionScreen> {
                           }
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
 
                       _buildCustomInput(
                         controller: _medicationController,
@@ -232,7 +316,7 @@ class _LogInfusionScreenState extends State<LogInfusionScreen> {
                             ? 'Enter medication name'
                             : null,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
 
                       _buildCustomInput(
                         controller: _doseController,
@@ -243,10 +327,19 @@ class _LogInfusionScreenState extends State<LogInfusionScreen> {
                         validator: (v) =>
                             v == null || v.isEmpty ? 'Enter dose amount' : null,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
+
+                      _buildCustomInput(
+                        controller: _lotNumberController,
+                        label: 'Lot Number (Optional)',
+                        icon: Icons.qr_code,
+                        hintText: 'Enter medication lot number',
+                        keyboardType: TextInputType.text,
+                      ),
+                      const SizedBox(height: 8),
 
                       _buildDateTimeSelector(),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
 
                       Container(
                         decoration: BoxDecoration(
@@ -272,7 +365,7 @@ class _LogInfusionScreenState extends State<LogInfusionScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 16),
 
                       // Save Button
                       SizedBox(
@@ -437,7 +530,7 @@ class _LogInfusionScreenState extends State<LogInfusionScreen> {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         Expanded(
           child: GestureDetector(
             onTap: _pickTime,
