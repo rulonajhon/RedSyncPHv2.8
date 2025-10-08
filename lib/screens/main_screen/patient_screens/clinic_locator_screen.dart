@@ -18,6 +18,10 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
   Position? _currentPosition;
   bool _isLoadingLocation = false;
   bool _showList = false;
+  bool _isMapReady = false;
+  bool _hasMapError = false;
+  String? _mapErrorMessage;
+  bool _isCreatingRoute = false;
 
   final Set<Polyline> _polylines = {};
   Map<String, dynamic>? _selectedLocation;
@@ -95,12 +99,301 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
   @override
   void initState() {
     super.initState();
+    _safeInitialization();
+  }
+
+  @override
+  void dispose() {
     try {
-      _initializeLocation();
-      _updateMarkers();
+      _mapController?.dispose();
     } catch (e) {
-      print('Error initializing clinic locator: $e');
+      print('Error disposing map controller: $e');
     }
+    super.dispose();
+  }
+
+  Future<void> _safeInitialization() async {
+    try {
+      print('🗺️ Starting clinic locator initialization...');
+
+      // Add a small delay to ensure the widget is fully built
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      if (!mounted) {
+        print('❌ Widget unmounted during initialization');
+        return;
+      }
+
+      setState(() {
+        _isMapReady = false;
+        _hasMapError = false;
+      });
+
+      print('🌍 Initializing location services...');
+
+      // Initialize location with timeout
+      await Future.any([
+        _initializeLocation(),
+        Future.delayed(const Duration(seconds: 10), () {
+          throw Exception('Location initialization timeout');
+        }),
+      ]);
+
+      if (!mounted) {
+        print('❌ Widget unmounted after location init');
+        return;
+      }
+
+      print('📍 Updating markers...');
+
+      // Then update markers
+      _updateMarkers();
+
+      // Add another delay before marking map as ready to allow Google Maps to initialize
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (!mounted) {
+        print('❌ Widget unmounted before map ready');
+        return;
+      }
+
+      print('✅ Map initialization complete');
+
+      setState(() {
+        _isMapReady = true;
+      });
+    } catch (e) {
+      print('❌ Error during safe initialization: $e');
+      if (mounted) {
+        setState(() {
+          _hasMapError = true;
+          _mapErrorMessage = 'Initialization error: ${e.toString()}';
+        });
+
+        // Provide fallback to list view
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted && _hasMapError) {
+            setState(() {
+              _showList = true;
+            });
+          }
+        });
+      }
+    }
+  }
+
+  Widget _buildMapWidget() {
+    // Show loading while map is initializing
+    if (!_isMapReady) {
+      return _buildMapLoadingWidget();
+    }
+
+    // Show error if there's a map error
+    if (_hasMapError) {
+      return _buildMapErrorWidget();
+    }
+
+    return FutureBuilder<Widget>(
+      future: _createSafeGoogleMap(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildMapLoadingWidget();
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _hasMapError = true;
+                _mapErrorMessage =
+                    'Map initialization failed: ${snapshot.error ?? 'Unknown error'}';
+              });
+            }
+          });
+          return _buildMapErrorWidget();
+        }
+
+        return snapshot.data!;
+      },
+    );
+  }
+
+  Future<Widget> _createSafeGoogleMap() async {
+    try {
+      // Add a small delay to prevent rapid initialization
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      if (!mounted) {
+        throw Exception('Widget no longer mounted');
+      }
+
+      return GoogleMap(
+        initialCameraPosition: CameraPosition(
+          target: _currentPosition != null
+              ? LatLng(
+                  _currentPosition!.latitude,
+                  _currentPosition!.longitude,
+                )
+              : const LatLng(7.0731, 125.6128),
+          zoom: 13,
+        ),
+        markers: _markers,
+        polylines: _polylines,
+        onMapCreated: (controller) {
+          _handleMapCreated(controller);
+        },
+        myLocationEnabled: false,
+        myLocationButtonEnabled: false,
+        compassEnabled: true,
+        zoomControlsEnabled: false,
+        mapToolbarEnabled: false,
+        // Simplified options to reduce complexity
+        liteModeEnabled: false,
+        // Add error handling for map rendering
+        onCameraMoveStarted: () {
+          // Map is responding, clear any previous errors
+          if (_hasMapError && mounted) {
+            setState(() {
+              _hasMapError = false;
+              _mapErrorMessage = null;
+            });
+          }
+        },
+      );
+    } catch (e) {
+      print('❌ Error creating Google Map: $e');
+      throw e;
+    }
+  }
+
+  void _handleMapCreated(GoogleMapController controller) {
+    try {
+      if (!mounted) return;
+
+      print('✅ Google Map created successfully');
+      _mapController = controller;
+
+      if (_currentPosition != null) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _centerMapOnUser();
+          }
+        });
+      }
+    } catch (e) {
+      print('❌ Error in map created callback: $e');
+      if (mounted) {
+        setState(() {
+          _hasMapError = true;
+          _mapErrorMessage = 'Map setup error: ${e.toString()}';
+        });
+      }
+    }
+  }
+
+  Widget _buildMapLoadingWidget() {
+    return Container(
+      color: Colors.grey[50],
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              color: Colors.redAccent,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Loading Map...',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Please wait while we initialize the clinic locator',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapErrorWidget() {
+    return Container(
+      color: Colors.grey[100],
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.map_outlined,
+                size: 64,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Map Unavailable',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _mapErrorMessage ??
+                    'Unable to load the map. Please check your connection.',
+                style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  _retryMapInitialization();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Retry'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _showList = true;
+                  });
+                },
+                child: const Text(
+                  'View List Instead',
+                  style: TextStyle(color: Colors.redAccent),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _retryMapInitialization() {
+    setState(() {
+      _hasMapError = false;
+      _mapErrorMessage = null;
+      _isMapReady = false;
+    });
+    _safeInitialization();
   }
 
   Future<void> _initializeLocation() async {
@@ -272,6 +565,8 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
 
   // 🗺️ Enhanced Marker Updates with User Location
   void _updateMarkers() {
+    if (!mounted) return; // Prevent updates on unmounted widget
+
     Set<Marker> markers = {};
 
     try {
@@ -351,17 +646,21 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
         }
       }
 
-      setState(() {
-        _markers = markers;
-      });
+      if (mounted) {
+        setState(() {
+          _markers = markers;
+        });
+      }
     } catch (e) {
       print('Error updating markers: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error updating map markers: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating map markers: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -486,9 +785,20 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _createRouteToLocation(location),
-                    icon: const Icon(FontAwesomeIcons.route, size: 16),
-                    label: const Text('Show Route'),
+                    onPressed: _isCreatingRoute
+                        ? null
+                        : () => _createRouteToLocation(location),
+                    icon: _isCreatingRoute
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(FontAwesomeIcons.route, size: 16),
+                    label: Text(_isCreatingRoute ? 'Loading...' : 'Show Route'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: selectedType == "clinic"
                           ? Colors.redAccent
@@ -555,11 +865,6 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
       return;
     }
 
-    // Close the bottom sheet/modal first
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
-
     if (_currentPosition == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -576,11 +881,44 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
     final selectedMode = await _showTravelModeDialog();
     if (selectedMode == null) return;
 
+    // Set loading state BEFORE closing modal to prevent blank screen
     setState(() {
+      _isCreatingRoute = true;
       _isLoadingRoute = true;
       _selectedLocation = location;
       _polylines.clear();
     });
+
+    // Show immediate loading feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text('Calculating route...'),
+          ],
+        ),
+        backgroundColor:
+            selectedType == "clinic" ? Colors.redAccent : Colors.blue,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    // Small delay to ensure loading state is visible
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    // Close the bottom sheet/modal after setting loading state
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
 
     try {
       final origin =
@@ -612,6 +950,7 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
             ),
           );
           _isLoadingRoute = false;
+          _isCreatingRoute = false;
         });
 
         // Show route information
@@ -620,6 +959,7 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
       } else {
         setState(() {
           _isLoadingRoute = false;
+          _isCreatingRoute = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -635,6 +975,7 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
     } catch (e) {
       setState(() {
         _isLoadingRoute = false;
+        _isCreatingRoute = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -907,40 +1248,11 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
       ),
       body: Stack(
         children: [
-          // Large Map View
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: _currentPosition != null
-                  ? LatLng(
-                      _currentPosition!.latitude,
-                      _currentPosition!.longitude,
-                    )
-                  : const LatLng(7.0731, 125.6128),
-              zoom: 13,
-            ),
-            markers: _markers,
-            polylines: _polylines,
-            onMapCreated: (controller) {
-              try {
-                _mapController = controller;
-                if (_currentPosition != null) {
-                  _centerMapOnUser();
-                }
-              } catch (e) {
-                print('Error initializing map controller: $e');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Map initialization error: ${e.toString()}'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-              }
-            },
-            myLocationEnabled: false,
-            myLocationButtonEnabled: false,
-            compassEnabled: true,
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false,
+          // Large Map View with Error Handling
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            child: _buildMapWidget(),
           ),
 
           // Top Status Bar
@@ -1196,6 +1508,62 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
               ],
             ),
           ),
+
+          // Route Loading Overlay (Full Screen)
+          if (_isLoadingRoute)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(
+                          color: selectedType == "clinic"
+                              ? Colors.redAccent
+                              : Colors.blue,
+                          strokeWidth: 3,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Calculating Route...',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Please wait while we find the best path',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1392,12 +1760,23 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _createRouteToLocation(item);
-                  },
-                  icon: const Icon(FontAwesomeIcons.route, size: 14),
-                  label: const Text('Route'),
+                  onPressed: _isCreatingRoute
+                      ? null
+                      : () {
+                          Navigator.pop(context);
+                          _createRouteToLocation(item);
+                        },
+                  icon: _isCreatingRoute
+                      ? SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(FontAwesomeIcons.route, size: 14),
+                  label: Text(_isCreatingRoute ? 'Loading...' : 'Route'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: selectedType == "clinic"
                         ? Colors.redAccent

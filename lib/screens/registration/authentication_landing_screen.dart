@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+// import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // Commented out - not currently used
 import 'package:hemophilia_manager/auth/auth.dart';
 import 'package:hemophilia_manager/services/firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -140,20 +140,20 @@ class _AuthenticationLandingScreenState
 
                       const SizedBox(height: 20),
 
-                      // Google Sign In
-                      SizedBox(
-                        width: double.infinity,
-                        child: _buildSocialButton(
-                          title: 'Sign in with Google',
-                          icon: FontAwesomeIcons.google,
-                          iconColor: Colors.redAccent,
-                          onTap: () {
-                            // TODO: Implement Google Sign In
-                          },
-                        ),
-                      ),
+                      // Google Sign In - Temporarily hidden (not implemented)
+                      // SizedBox(
+                      //   width: double.infinity,
+                      //   child: _buildSocialButton(
+                      //     title: 'Sign in with Google',
+                      //     icon: FontAwesomeIcons.google,
+                      //     iconColor: Colors.redAccent,
+                      //     onTap: () {
+                      //       // TODO: Implement Google Sign In
+                      //     },
+                      //   ),
+                      // ),
 
-                      const SizedBox(height: 12),
+                      // const SizedBox(height: 12),
 
                       // Guest Access
                       SizedBox(
@@ -485,7 +485,7 @@ class _AuthenticationLandingScreenState
                       children: [
                         TextButton(
                           onPressed: () {
-                            // TODO: Navigate to Terms of Service
+                            _showTermsOfService();
                           },
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -509,7 +509,7 @@ class _AuthenticationLandingScreenState
                         ),
                         TextButton(
                           onPressed: () {
-                            // TODO: Navigate to Privacy Policy
+                            _showPrivacyPolicy();
                           },
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -576,36 +576,219 @@ class _AuthenticationLandingScreenState
     );
   }
 
-  Widget _buildSocialButton({
-    required String title,
-    required IconData icon,
-    required Color iconColor,
-    required VoidCallback onTap,
-  }) {
-    return SizedBox(
-      height: 48,
-      child: OutlinedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 18, color: iconColor),
-        label: Text(
-          title,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-            color: Colors.grey.shade700,
+  void _showTermsOfService() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Terms of Service',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.redAccent,
+            ),
           ),
-        ),
-        style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          side: BorderSide(color: Colors.grey.shade300, width: 1),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'RedSync PH Terms of Service',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '1. Acceptance of Terms',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'By using RedSync PH, you agree to these terms and conditions. This app is designed to help manage hemophilia care and connect patients with healthcare providers.',
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '2. Medical Disclaimer',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This app is for informational purposes only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of qualified healthcare providers.',
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '3. Data Privacy',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'We respect your privacy and are committed to protecting your personal information. Your health data is encrypted and securely stored.',
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '4. User Responsibilities',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Users are responsible for providing accurate information and using the app responsibly. Medical professionals must verify their credentials.',
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '5. Emergency Situations',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This app is not intended for emergency situations. In case of a medical emergency, immediately contact local emergency services.',
+                ),
+              ],
+            ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        ),
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'Close',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
+
+  void _showPrivacyPolicy() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Privacy Policy',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.redAccent,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'RedSync PH Privacy Policy',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '1. Information We Collect',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'We collect information you provide directly to us, such as when you create an account, update your profile, or use our services. This includes name, email address, and medical information relevant to hemophilia care.',
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '2. How We Use Your Information',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'We use your information to provide, maintain, and improve our services, communicate with you, and ensure the security of our platform. Medical information is used solely for care management purposes.',
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '3. Information Sharing',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'We do not sell, trade, or otherwise transfer your personal information to third parties without your consent, except as described in this policy or as required by law.',
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '4. Data Security',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'We implement appropriate security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction.',
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '5. Your Rights',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'You have the right to access, update, or delete your personal information. You may also request data portability or object to certain processing activities.',
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '6. Contact Us',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'If you have any questions about this Privacy Policy, please contact our Data Protection Officer through the app or via email.',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'Close',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Widget _buildSocialButton({
+  //   required String title,
+  //   required IconData icon,
+  //   required Color iconColor,
+  //   required VoidCallback onTap,
+  // }) {
+  //   return SizedBox(
+  //     height: 48,
+  //     child: OutlinedButton.icon(
+  //       onPressed: onTap,
+  //       icon: Icon(icon, size: 18, color: iconColor),
+  //       label: Text(
+  //         title,
+  //         style: TextStyle(
+  //           fontWeight: FontWeight.w600,
+  //           fontSize: 14,
+  //           color: Colors.grey.shade700,
+  //         ),
+  //       ),
+  //       style: OutlinedButton.styleFrom(
+  //         backgroundColor: Colors.white,
+  //         side: BorderSide(color: Colors.grey.shade300, width: 1),
+  //         shape: RoundedRectangleBorder(
+  //           borderRadius: BorderRadius.circular(12),
+  //         ),
+  //         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  //       ),
+  //     ),
+  //   );
+  // }
 
   Widget _buildGuestFeature(String feature) {
     return Padding(

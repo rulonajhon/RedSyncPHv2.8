@@ -15,6 +15,18 @@
 			"problemMatcher": [
 				"$flutter"
 			]
+		},
+		{
+			"label": "Build Release APK",
+			"type": "shell",
+			"command": "flutter",
+			"args": [
+				"build",
+				"apk",
+				"--release"
+			],
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }

@@ -55,10 +55,9 @@ class _AdminDashboardState extends State<AdminDashboard>
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
         // Admin info is loaded, could be used for additional setup if needed
-        print('Admin loaded: ${currentUser.displayName ?? 'Administrator'}');
       }
     } catch (e) {
-      print('Error loading admin info: $e');
+      // Error loading admin info
     }
   }
 
@@ -71,10 +70,10 @@ class _AdminDashboardState extends State<AdminDashboard>
           email: currentUser.email!,
           name: 'Administrator',
         );
-        print('Admin user setup completed successfully');
+        // Admin user setup completed successfully
       }
     } catch (e) {
-      print('Admin setup error: $e');
+      // Admin setup error
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -159,11 +158,9 @@ class _AdminDashboardState extends State<AdminDashboard>
             padding: const EdgeInsets.only(right: 16.0),
             child: InkWell(
               onTap: () {
-                print('Admin avatar clicked - navigating to admin settings');
                 try {
                   Navigator.pushNamed(context, '/admin_settings');
                 } catch (e) {
-                  print('Navigation error: $e');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Settings not available: $e'),
