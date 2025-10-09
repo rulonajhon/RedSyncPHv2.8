@@ -14,6 +14,8 @@ import 'package:hemophilia_manager/services/openai_service.dart';
 import 'package:hemophilia_manager/services/notification_service.dart';
 import 'package:hemophilia_manager/services/firestore.dart';
 import 'package:hemophilia_manager/services/offline_service.dart';
+import 'package:hemophilia_manager/auth/auth.dart';
+import 'package:hemophilia_manager/services/auth_state_manager.dart';
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
@@ -59,6 +61,15 @@ void main() async {
     print('Offline service initialized successfully');
   } catch (e) {
     print('Warning: Failed to initialize Offline service: $e');
+  }
+
+  // Initialize authentication state manager
+  try {
+    final authStateManager = AuthStateManager();
+    authStateManager.initialize();
+    print('✅ Auth state manager initialized');
+  } catch (e) {
+    print('Warning: Failed to initialize auth state manager: $e');
   }
 
   runApp(const MyApp());
@@ -183,6 +194,7 @@ class AppInitializer extends StatefulWidget {
 
 class _AppInitializerState extends State<AppInitializer> {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final AuthService _authService = AuthService(); // Added AuthService instance
 
   @override
   void initState() {
@@ -202,6 +214,20 @@ class _AppInitializerState extends State<AppInitializer> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+        );
+        return;
+      }
+
+      // Validate authentication state consistency
+      final isAuthValid = await _authService.validateAuthState();
+
+      if (!isAuthValid) {
+        print('🔄 Auth state invalid, redirecting to login');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AuthenticationLandingScreen(),
+          ),
         );
         return;
       }

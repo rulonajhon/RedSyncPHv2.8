@@ -147,118 +147,158 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final timestamp = notification['timestamp'] as DateTime;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: isRead ? Colors.white : Colors.blue[50],
+      margin: const EdgeInsets.only(bottom: 4),
+      child: Material(
+        elevation: 0,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isRead ? Colors.grey[200]! : Colors.blue[200]!,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: CircleAvatar(
-          backgroundColor: _getNotificationColor(type).withOpacity(0.1),
-          child: Icon(
-            _getNotificationIcon(type),
-            color: _getNotificationColor(type),
-            size: 20,
-          ),
-        ),
-        title: Text(
-          notification['title'],
-          style: TextStyle(
-            fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
-            fontSize: 16,
-            color: Colors.black87,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              notification['message'],
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _formatTimestamp(timestamp),
-              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-            ),
-          ],
-        ),
-        trailing: PopupMenuButton(
-          icon: Icon(
-            FontAwesomeIcons.ellipsisVertical,
-            size: 16,
-            color: Colors.grey[600],
-          ),
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'read',
-              child: Row(
-                children: [
-                  Icon(
-                    isRead ? FontAwesomeIcons.eyeSlash : FontAwesomeIcons.eye,
-                    size: 16,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(width: 8),
-                  Text(isRead ? 'Mark as unread' : 'Mark as read'),
-                ],
-              ),
-            ),
-            PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(
-                    FontAwesomeIcons.trash,
-                    size: 16,
-                    color: Colors.red[600],
-                  ),
-                  const SizedBox(width: 8),
-                  Text('Delete', style: TextStyle(color: Colors.red[600])),
-                ],
-              ),
-            ),
-          ],
-          onSelected: (value) async {
-            if (value == 'read') {
-              if (isRead) {
-                // Mark as unread - we'd need to add this functionality
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Mark as unread not implemented'),
-                  ),
-                );
-              } else {
-                await _notificationService.markAsRead(notification['id']);
-              }
-            } else if (value == 'delete') {
-              await _notificationService.deleteNotification(notification['id']);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notification deleted')),
-              );
+        color: isRead ? Colors.white : Colors.blue.shade50,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            _handleNotificationTap(notification);
+            if (!isRead) {
+              _notificationService.markAsRead(notification['id']);
             }
           },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: (isRead ? Colors.grey.shade200 : Colors.blue.shade100),
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _getNotificationColor(type).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: _getNotificationColor(type).withOpacity(0.2)),
+                  ),
+                  child: Icon(
+                    _getNotificationIcon(type),
+                    color: _getNotificationColor(type),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        notification['title'],
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight:
+                              isRead ? FontWeight.w500 : FontWeight.w700,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        notification['message'],
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade700,
+                          height: 1.3,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _formatTimestamp(timestamp),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  children: [
+                    if (!isRead)
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    PopupMenuButton(
+                      icon: Icon(
+                        FontAwesomeIcons.ellipsisVertical,
+                        size: 14,
+                        color: Colors.grey.shade500,
+                      ),
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'read',
+                          child: Row(
+                            children: [
+                              Icon(
+                                isRead
+                                    ? FontAwesomeIcons.eyeSlash
+                                    : FontAwesomeIcons.eye,
+                                size: 16,
+                                color: Colors.grey[600],
+                              ),
+                              const SizedBox(width: 8),
+                              Text(isRead ? 'Mark as unread' : 'Mark as read'),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(
+                                FontAwesomeIcons.trash,
+                                size: 16,
+                                color: Colors.red[600],
+                              ),
+                              const SizedBox(width: 8),
+                              Text('Delete',
+                                  style: TextStyle(color: Colors.red[600])),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onSelected: (value) async {
+                        if (value == 'read') {
+                          if (isRead) {
+                            // Mark as unread - we'd need to add this functionality
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Mark as unread not implemented'),
+                              ),
+                            );
+                          } else {
+                            await _notificationService
+                                .markAsRead(notification['id']);
+                          }
+                        } else if (value == 'delete') {
+                          await _notificationService
+                              .deleteNotification(notification['id']);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Notification deleted')),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
-        onTap: () {
-          _handleNotificationTap(notification);
-          if (!isRead) {
-            _notificationService.markAsRead(notification['id']);
-          }
-        },
       ),
     );
   }

@@ -19,7 +19,7 @@ if (secretsPropertiesFile.exists()) {
 
 android {
     namespace = "com.example.hemophilia_manager"
-    compileSdk = 35
+    compileSdk = 36  // Updated to 36 for plugin compatibility
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -37,8 +37,8 @@ android {
         applicationId = "com.example.hemophilia_manager"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 23  // Required for Firebase Auth 23.2.1 compatibility (minimum API level 23)
-        targetSdk = 35  // Updated to match compileSdk for plugin compatibility
+        minSdkVersion(24)  // Set to API level 24 as required by geolocator plugin
+        targetSdk = 36  // Updated to match compileSdk for plugin compatibility
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         

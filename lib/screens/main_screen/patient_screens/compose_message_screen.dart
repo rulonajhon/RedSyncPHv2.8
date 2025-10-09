@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../shared/chat_screen.dart';
 import '../../../services/data_sharing_service.dart';
+import '../../../services/doctor_availability_service.dart';
 import 'care_provider_screen.dart';
 
 class ComposeMessageScreen extends StatefulWidget {
@@ -14,6 +15,8 @@ class ComposeMessageScreen extends StatefulWidget {
 class _ComposeMessageScreenState extends State<ComposeMessageScreen> {
   final TextEditingController _searchController = TextEditingController();
   final DataSharingService _dataSharingService = DataSharingService();
+  final DoctorAvailabilityService _availabilityService =
+      DoctorAvailabilityService();
 
   List<Map<String, dynamic>> _healthcareProviders = [];
   List<Map<String, dynamic>> _filteredProviders = [];
@@ -38,8 +41,8 @@ class _ComposeMessageScreenState extends State<ComposeMessageScreen> {
       });
 
       // Get only healthcare providers who have active data sharing agreements with this patient
-      final authorizedProviders = await _dataSharingService
-          .getAuthorizedHealthcareProviders();
+      final authorizedProviders =
+          await _dataSharingService.getAuthorizedHealthcareProviders();
 
       setState(() {
         _healthcareProviders = authorizedProviders;
@@ -70,9 +73,8 @@ class _ComposeMessageScreenState extends State<ComposeMessageScreen> {
         _filteredProviders = _healthcareProviders.where((provider) {
           final name = (provider['name'] ?? '').toString().toLowerCase();
           final email = (provider['email'] ?? '').toString().toLowerCase();
-          final specialization = (provider['specialization'] ?? '')
-              .toString()
-              .toLowerCase();
+          final specialization =
+              (provider['specialization'] ?? '').toString().toLowerCase();
           return name.contains(query.toLowerCase()) ||
               email.contains(query.toLowerCase()) ||
               specialization.contains(query.toLowerCase());
@@ -81,7 +83,17 @@ class _ComposeMessageScreenState extends State<ComposeMessageScreen> {
     });
   }
 
-  void _startChatWithProvider(Map<String, dynamic> provider) {
+  void _startChatWithProvider(Map<String, dynamic> provider) async {
+    // Check doctor availability first
+    final availability =
+        await _availabilityService.checkDoctorAvailability(provider['id']);
+
+    if (!availability['isAvailable']) {
+      _showAvailabilityDialog(provider, availability);
+      return;
+    }
+
+    // Doctor is available, proceed with chat
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -96,6 +108,92 @@ class _ComposeMessageScreenState extends State<ComposeMessageScreen> {
           currentUserRole: 'patient',
         ),
       ),
+    );
+  }
+
+  void _showAvailabilityDialog(
+      Map<String, dynamic> provider, Map<String, dynamic> availability) {
+    String dialogTitle;
+    String dialogMessage;
+    String buttonText;
+    Color iconColor;
+    IconData iconData;
+
+    switch (availability['reason']) {
+      case 'messages_disabled':
+        dialogTitle = 'Messages Disabled';
+        dialogMessage =
+            'Dr. ${provider['name']} is currently not accepting messages. Please try again later or contact them through other means.';
+        buttonText = 'Understood';
+        iconColor = Colors.red;
+        iconData = FontAwesomeIcons.ban;
+        break;
+      case 'day_unavailable':
+        dialogTitle = 'Not Available Today';
+        final availableDays =
+            List<String>.from(availability['availableDays'] ?? []);
+        dialogMessage =
+            'Dr. ${provider['name']} is not available for messages today.\n\nAvailable days: ${availableDays.join(', ')}';
+        buttonText = 'Got it';
+        iconColor = Colors.orange;
+        iconData = FontAwesomeIcons.calendar;
+        break;
+      case 'time_unavailable':
+        dialogTitle = 'Outside Available Hours';
+        final availableHours = availability['availableHours'];
+        dialogMessage =
+            'Dr. ${provider['name']} is currently outside their available hours.\n\nAvailable: ${availableHours['start']} - ${availableHours['end']}';
+        buttonText = 'Understood';
+        iconColor = Colors.blue;
+        iconData = FontAwesomeIcons.clock;
+        break;
+      default:
+        dialogTitle = 'Unavailable';
+        dialogMessage = availability['message'] ??
+            'This doctor is currently unavailable for messages.';
+        buttonText = 'OK';
+        iconColor = Colors.grey;
+        iconData = FontAwesomeIcons.exclamation;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(iconData, color: iconColor, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  dialogTitle,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: iconColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            dialogMessage,
+            style: const TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                buttonText,
+                style: const TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -272,16 +370,17 @@ class _ComposeMessageScreenState extends State<ComposeMessageScreen> {
                     ),
                   )
                 : _filteredProviders.isEmpty
-                ? _buildEmptyState()
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: _filteredProviders.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final provider = _filteredProviders[index];
-                      return _buildProviderItem(provider);
-                    },
-                  ),
+                    ? _buildEmptyState()
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: _filteredProviders.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final provider = _filteredProviders[index];
+                          return _buildProviderItem(provider);
+                        },
+                      ),
           ),
         ],
       ),
@@ -289,8 +388,7 @@ class _ComposeMessageScreenState extends State<ComposeMessageScreen> {
   }
 
   Widget _buildEmptyState() {
-    bool isSearchEmpty =
-        _searchController.text.isNotEmpty &&
+    bool isSearchEmpty = _searchController.text.isNotEmpty &&
         _filteredProviders.isEmpty &&
         _healthcareProviders.isNotEmpty;
 
@@ -458,7 +556,8 @@ class _ComposeMessageScreenState extends State<ComposeMessageScreen> {
                   if (provider['specialization'] != null &&
                       provider['specialization'].isNotEmpty)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.blue.shade50,
                         borderRadius: BorderRadius.circular(12),
@@ -472,6 +571,130 @@ class _ComposeMessageScreenState extends State<ComposeMessageScreen> {
                         ),
                       ),
                     ),
+                  const SizedBox(height: 6),
+
+                  // Availability Status
+                  FutureBuilder<Map<String, dynamic>>(
+                    future: _availabilityService
+                        .checkDoctorAvailability(provider['id']),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 10,
+                                height: 10,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Checking...',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      if (!snapshot.hasData) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Status unknown',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        );
+                      }
+
+                      final availability = snapshot.data!;
+                      final isAvailable = availability['isAvailable'] ?? false;
+
+                      Color statusColor;
+                      IconData statusIcon;
+                      String statusText;
+
+                      if (isAvailable) {
+                        statusColor = Colors.green;
+                        statusIcon = FontAwesomeIcons.circle;
+                        statusText = 'Available now';
+                      } else {
+                        switch (availability['reason']) {
+                          case 'messages_disabled':
+                            statusColor = Colors.red;
+                            statusIcon = FontAwesomeIcons.ban;
+                            statusText = 'Messages disabled';
+                            break;
+                          case 'day_unavailable':
+                            statusColor = Colors.orange;
+                            statusIcon = FontAwesomeIcons.calendar;
+                            statusText = 'Not available today';
+                            break;
+                          case 'time_unavailable':
+                            statusColor = Colors.blue;
+                            statusIcon = FontAwesomeIcons.clock;
+                            statusText = 'Outside office hours';
+                            break;
+                          default:
+                            statusColor = Colors.grey;
+                            statusIcon = FontAwesomeIcons.exclamation;
+                            statusText = 'Unavailable';
+                        }
+                      }
+
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border:
+                              Border.all(color: statusColor.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              statusIcon,
+                              color: statusColor,
+                              size: isAvailable ? 8 : 10,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              statusText,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: statusColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
                   if (provider['email'] != null &&
                       provider['email'].isNotEmpty) ...[
                     const SizedBox(height: 6),

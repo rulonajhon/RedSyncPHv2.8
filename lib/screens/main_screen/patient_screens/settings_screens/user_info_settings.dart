@@ -21,7 +21,7 @@ class _UserInfoSettingsState extends State<UserInfoSettings> {
 
   final List<String> genderOptions = ['Male', 'Female', 'Other'];
   final List<String> hemoTypes = ['Hemophilia A', 'Hemophilia B', 'Other'];
-  
+
   // Add a dedicated controller for weight
   late TextEditingController _weightController;
 
@@ -103,150 +103,155 @@ class _UserInfoSettingsState extends State<UserInfoSettings> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  // Profile Header Section
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      children: [
-                        Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 50,
-                              backgroundColor: Colors.grey.shade300,
-                              backgroundImage: photoUrl.isNotEmpty
-                                  ? NetworkImage(photoUrl)
-                                  : null,
-                              child: photoUrl.isEmpty
-                                  ? Icon(
-                                      Icons.person,
-                                      size: 40,
-                                      color: Colors.grey.shade600,
-                                    )
-                                  : null,
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.white, width: 2),
-                                ),
-                                child: const Icon(
-                                  Icons.camera_alt,
-                                  color: Colors.white,
-                                  size: 16,
+          : SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    // Profile Header Section
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 50,
+                                backgroundColor: Colors.grey.shade300,
+                                backgroundImage: photoUrl.isNotEmpty
+                                    ? NetworkImage(photoUrl)
+                                    : null,
+                                child: photoUrl.isEmpty
+                                    ? Icon(
+                                        Icons.person,
+                                        size: 40,
+                                        color: Colors.grey.shade600,
+                                      )
+                                    : null,
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: Colors.redAccent,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                        color: Colors.white, width: 2),
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                 ),
                               ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            name.isEmpty ? 'Loading...' : name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              color: Colors.black87,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          name.isEmpty ? 'Loading...' : name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                            color: Colors.black87,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          email,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
+                          const SizedBox(height: 4),
+                          Text(
+                            email,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Personal Information Section
-                  _buildSectionHeader('Personal Information', Icons.person_outline),
-                  const SizedBox(height: 16),
-                  
-                  _buildInfoTile(
-                    icon: Icons.wc,
-                    title: 'Gender',
-                    value: gender,
-                    onTap: () => _showGenderDialog(),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  _buildInfoTile(
-                    icon: Icons.cake,
-                    title: 'Date of Birth',
-                    value: dob == null
-                        ? 'Not set'
-                        : '${dob!.day}/${dob!.month}/${dob!.year}',
-                    onTap: () => _selectDateOfBirth(),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  _buildWeightTile(),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Medical Information Section
-                  _buildSectionHeader('Medical Information', Icons.medical_services),
-                  const SizedBox(height: 16),
-                  
-                  _buildInfoTile(
-                    icon: Icons.bloodtype,
-                    title: 'Hemophilia Type',
-                    value: hemophiliaType,
-                    onTap: () => _showHemophiliaTypeDialog(),
-                  ),
-                  
-                  const SizedBox(height: 40),
-                  
-                  // Save Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _saveProfile,
-                      icon: const Icon(
-                        Icons.save,
-                        color: Colors.white,
-                        size: 20,
+                        ],
                       ),
-                      label: const Text(
-                        'Save Changes',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Personal Information Section
+                    _buildSectionHeader(
+                        'Personal Information', Icons.person_outline),
+                    const SizedBox(height: 16),
+
+                    _buildInfoTile(
+                      icon: Icons.wc,
+                      title: 'Gender',
+                      value: gender,
+                      onTap: () => _showGenderDialog(),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _buildInfoTile(
+                      icon: Icons.cake,
+                      title: 'Date of Birth',
+                      value: dob == null
+                          ? 'Not set'
+                          : '${dob!.day}/${dob!.month}/${dob!.year}',
+                      onTap: () => _selectDateOfBirth(),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _buildWeightTile(),
+
+                    const SizedBox(height: 32),
+
+                    // Medical Information Section
+                    _buildSectionHeader(
+                        'Medical Information', Icons.medical_services),
+                    const SizedBox(height: 16),
+
+                    _buildInfoTile(
+                      icon: Icons.bloodtype,
+                      title: 'Hemophilia Type',
+                      value: hemophiliaType,
+                      onTap: () => _showHemophiliaTypeDialog(),
+                    ),
+
+                    const SizedBox(height: 40),
+
+                    // Save Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: _isLoading ? null : _saveProfile,
+                        icon: const Icon(
+                          Icons.save,
                           color: Colors.white,
+                          size: 20,
                         ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                        label: const Text(
+                          'Save Changes',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
     );
@@ -397,7 +402,8 @@ class _UserInfoSettingsState extends State<UserInfoSettings> {
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
                   ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (val) => setState(() => weight = val),
                 ),
               ],
@@ -418,14 +424,18 @@ class _UserInfoSettingsState extends State<UserInfoSettings> {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: genderOptions.map((g) => 
-            ListTile(
-              title: Text(g),
-              onTap: () => Navigator.pop(context, g),
-              trailing: gender == g ? const Icon(Icons.check, color: Colors.redAccent) : null,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ).toList(),
+          children: genderOptions
+              .map(
+                (g) => ListTile(
+                  title: Text(g),
+                  onTap: () => Navigator.pop(context, g),
+                  trailing: gender == g
+                      ? const Icon(Icons.check, color: Colors.redAccent)
+                      : null,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              )
+              .toList(),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -443,14 +453,18 @@ class _UserInfoSettingsState extends State<UserInfoSettings> {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: hemoTypes.map((h) => 
-            ListTile(
-              title: Text(h),
-              onTap: () => Navigator.pop(context, h),
-              trailing: hemophiliaType == h ? const Icon(Icons.check, color: Colors.redAccent) : null,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ).toList(),
+          children: hemoTypes
+              .map(
+                (h) => ListTile(
+                  title: Text(h),
+                  onTap: () => Navigator.pop(context, h),
+                  trailing: hemophiliaType == h
+                      ? const Icon(Icons.check, color: Colors.redAccent)
+                      : null,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              )
+              .toList(),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

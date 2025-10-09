@@ -139,203 +139,206 @@ class _MedicalInfoSettingsState extends State<MedicalInfoSettings> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  // Profile Header Section
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      children: [
-                        Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 50,
-                              backgroundColor: Colors.grey.shade300,
-                              backgroundImage: photoUrl.isNotEmpty
-                                  ? NetworkImage(photoUrl)
-                                  : null,
-                              child: photoUrl.isEmpty
-                                  ? Icon(
-                                      Icons.person,
-                                      size: 40,
-                                      color: Colors.grey.shade600,
-                                    )
-                                  : null,
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border:
-                                      Border.all(color: Colors.white, width: 2),
-                                ),
-                                child: const Icon(
-                                  Icons.camera_alt,
-                                  color: Colors.white,
-                                  size: 16,
+          : SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    // Profile Header Section
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 50,
+                                backgroundColor: Colors.grey.shade300,
+                                backgroundImage: photoUrl.isNotEmpty
+                                    ? NetworkImage(photoUrl)
+                                    : null,
+                                child: photoUrl.isEmpty
+                                    ? Icon(
+                                        Icons.person,
+                                        size: 40,
+                                        color: Colors.grey.shade600,
+                                      )
+                                    : null,
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: Colors.redAccent,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                        color: Colors.white, width: 2),
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                 ),
                               ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            name.isEmpty ? 'Loading...' : name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              color: Colors.black87,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          name.isEmpty ? 'Loading...' : name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                            color: Colors.black87,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          email,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'Medical Professional',
+                          const SizedBox(height: 4),
+                          Text(
+                            email,
                             style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.green.shade700,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Verification Status Section (only for medical professionals)
-                  _buildVerificationSection(),
-
-                  const SizedBox(height: 32),
-
-                  // Personal Information Section
-                  _buildSectionHeader(
-                      'Personal Information', Icons.person_outline),
-                  const SizedBox(height: 16),
-
-                  _buildInfoTile(
-                    icon: Icons.wc,
-                    title: 'Gender',
-                    value: gender,
-                    onTap: () => _showGenderDialog(),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  _buildInfoTile(
-                    icon: Icons.cake,
-                    title: 'Date of Birth',
-                    value: dob == null
-                        ? 'Not set'
-                        : '${dob!.day}/${dob!.month}/${dob!.year}',
-                    onTap: () => _selectDateOfBirth(),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Professional Information Section
-                  _buildSectionHeader(
-                      'Professional Information', Icons.medical_services),
-                  const SizedBox(height: 16),
-
-                  _buildInfoTile(
-                    icon: Icons.school,
-                    title: 'Specialization',
-                    value: specialization,
-                    onTap: () => _showSpecializationDialog(),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  _buildTextFieldTile(
-                    controller: _licenseController,
-                    icon: Icons.badge,
-                    title: 'License Number',
-                    hintText: 'Enter license number',
-                    onChanged: (val) => setState(() => licenseNumber = val),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  _buildTextFieldTile(
-                    controller: _hospitalController,
-                    icon: Icons.local_hospital,
-                    title: 'Hospital/Clinic Affiliation',
-                    hintText: 'Enter hospital or clinic name',
-                    onChanged: (val) =>
-                        setState(() => hospitalAffiliation = val),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  _buildTextFieldTile(
-                    controller: _experienceController,
-                    icon: Icons.work,
-                    title: 'Years of Experience',
-                    hintText: 'Enter years of experience',
-                    keyboardType: TextInputType.number,
-                    onChanged: (val) => setState(() => yearsOfExperience = val),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  // Save Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _saveProfile,
-                      icon: const Icon(
-                        Icons.save,
-                        color: Colors.white,
-                        size: 20,
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Medical Professional',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      label: const Text(
-                        'Save Changes',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Verification Status Section (only for medical professionals)
+                    _buildVerificationSection(),
+
+                    const SizedBox(height: 32),
+
+                    // Personal Information Section
+                    _buildSectionHeader(
+                        'Personal Information', Icons.person_outline),
+                    const SizedBox(height: 16),
+
+                    _buildInfoTile(
+                      icon: Icons.wc,
+                      title: 'Gender',
+                      value: gender,
+                      onTap: () => _showGenderDialog(),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _buildInfoTile(
+                      icon: Icons.cake,
+                      title: 'Date of Birth',
+                      value: dob == null
+                          ? 'Not set'
+                          : '${dob!.day}/${dob!.month}/${dob!.year}',
+                      onTap: () => _selectDateOfBirth(),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Professional Information Section
+                    _buildSectionHeader(
+                        'Professional Information', Icons.medical_services),
+                    const SizedBox(height: 16),
+
+                    _buildInfoTile(
+                      icon: Icons.school,
+                      title: 'Specialization',
+                      value: specialization,
+                      onTap: () => _showSpecializationDialog(),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _buildTextFieldTile(
+                      controller: _licenseController,
+                      icon: Icons.badge,
+                      title: 'License Number',
+                      hintText: 'Enter license number',
+                      onChanged: (val) => setState(() => licenseNumber = val),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _buildTextFieldTile(
+                      controller: _hospitalController,
+                      icon: Icons.local_hospital,
+                      title: 'Hospital/Clinic Affiliation',
+                      hintText: 'Enter hospital or clinic name',
+                      onChanged: (val) =>
+                          setState(() => hospitalAffiliation = val),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _buildTextFieldTile(
+                      controller: _experienceController,
+                      icon: Icons.work,
+                      title: 'Years of Experience',
+                      hintText: 'Enter years of experience',
+                      keyboardType: TextInputType.number,
+                      onChanged: (val) =>
+                          setState(() => yearsOfExperience = val),
+                    ),
+
+                    const SizedBox(height: 40),
+
+                    // Save Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: _isLoading ? null : _saveProfile,
+                        icon: const Icon(
+                          Icons.save,
                           color: Colors.white,
+                          size: 20,
                         ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                        label: const Text(
+                          'Save Changes',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
     );

@@ -26,9 +26,29 @@ class _CaregiverInfoSettingsState extends State<CaregiverInfoSettings> {
   bool _isLoading = false;
 
   final List<String> genderOptions = ['Male', 'Female', 'Other'];
-  final List<String> relationshipOptions = ['Parent', 'Spouse', 'Sibling', 'Guardian', 'Other'];
-  final List<String> hemophiliaTypeOptions = ['Hemophilia A', 'Hemophilia B', 'Hemophilia C'];
-  final List<String> bloodTypeOptions = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Not specified'];
+  final List<String> relationshipOptions = [
+    'Parent',
+    'Spouse',
+    'Sibling',
+    'Guardian',
+    'Other'
+  ];
+  final List<String> hemophiliaTypeOptions = [
+    'Hemophilia A',
+    'Hemophilia B',
+    'Hemophilia C'
+  ];
+  final List<String> bloodTypeOptions = [
+    'A+',
+    'A-',
+    'B+',
+    'B-',
+    'AB+',
+    'AB-',
+    'O+',
+    'O-',
+    'Not specified'
+  ];
 
   @override
   void initState() {
@@ -50,7 +70,8 @@ class _CaregiverInfoSettingsState extends State<CaregiverInfoSettings> {
           relationship = userData['relationship'] ?? relationship;
           patientName = userData['patientName'] ?? patientName;
           patientAge = userData['patientAge'] ?? patientAge;
-          patientHemophiliaType = userData['patientHemophiliaType'] ?? patientHemophiliaType;
+          patientHemophiliaType =
+              userData['patientHemophiliaType'] ?? patientHemophiliaType;
           patientGender = userData['patientGender'] ?? patientGender;
           patientWeight = userData['patientWeight'] ?? patientWeight;
           patientBloodType = userData['patientBloodType'] ?? patientBloodType;
@@ -104,7 +125,7 @@ class _CaregiverInfoSettingsState extends State<CaregiverInfoSettings> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Edit Caregiver Profile',  
+          'Edit Caregiver Profile',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
@@ -112,216 +133,225 @@ class _CaregiverInfoSettingsState extends State<CaregiverInfoSettings> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  // Profile Header Section
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      children: [
-                        Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 50,
-                              backgroundColor: Colors.grey.shade300,
-                              backgroundImage: photoUrl.isNotEmpty
-                                  ? NetworkImage(photoUrl)
-                                  : null,
-                              child: photoUrl.isEmpty
-                                  ? Icon(
-                                      Icons.person,
-                                      size: 40,
-                                      color: Colors.grey.shade600,
-                                    )
-                                  : null,
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.white, width: 2),
-                                ),
-                                child: const Icon(
-                                  Icons.camera_alt,
-                                  color: Colors.white,
-                                  size: 16,
+          : SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    // Profile Header Section
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 50,
+                                backgroundColor: Colors.grey.shade300,
+                                backgroundImage: photoUrl.isNotEmpty
+                                    ? NetworkImage(photoUrl)
+                                    : null,
+                                child: photoUrl.isEmpty
+                                    ? Icon(
+                                        Icons.person,
+                                        size: 40,
+                                        color: Colors.grey.shade600,
+                                      )
+                                    : null,
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: Colors.redAccent,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                        color: Colors.white, width: 2),
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                 ),
                               ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            name.isEmpty ? 'Loading...' : name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              color: Colors.black87,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          name.isEmpty ? 'Loading...' : name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                            color: Colors.black87,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          email,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'Caregiver',
+                          const SizedBox(height: 4),
+                          Text(
+                            email,
                             style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.blue.shade700,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Personal Information Section
-                  _buildSectionHeader('Personal Information', Icons.person_outline),
-                  const SizedBox(height: 16),
-                  
-                  _buildInfoTile(
-                    icon: Icons.wc,
-                    title: 'Gender',
-                    value: gender,
-                    onTap: () => _showGenderDialog(),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  _buildInfoTile(
-                    icon: Icons.cake,
-                    title: 'Date of Birth',
-                    value: dob == null
-                        ? 'Not set'
-                        : '${dob!.day}/${dob!.month}/${dob!.year}',
-                    onTap: () => _selectDateOfBirth(),
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Caregiving Information Section
-                  _buildSectionHeader('Caregiving Information', Icons.family_restroom),
-                  const SizedBox(height: 16),
-                  
-                  _buildInfoTile(
-                    icon: Icons.people,
-                    title: 'Relationship to Patient',
-                    value: relationship,
-                    onTap: () => _showRelationshipDialog(),
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Patient Information Section
-                  _buildSectionHeader('Patient Information', Icons.local_hospital),
-                  const SizedBox(height: 16),
-                  
-                  _buildPatientNameTile(),
-                  
-                  const SizedBox(height: 16),
-                  
-                  _buildPatientAgeTile(),
-                  
-                  const SizedBox(height: 16),
-                  
-                  _buildInfoTile(
-                    icon: Icons.wc,
-                    title: 'Patient Gender',
-                    value: patientGender,
-                    onTap: () => _showPatientGenderDialog(),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  _buildInfoTile(
-                    icon: Icons.cake,
-                    title: 'Patient Date of Birth',
-                    value: patientDob == null
-                        ? 'Not set'
-                        : '${patientDob!.day}/${patientDob!.month}/${patientDob!.year}',
-                    onTap: () => _selectPatientDateOfBirth(),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  _buildInfoTile(
-                    icon: Icons.medical_services,
-                    title: 'Hemophilia Type',
-                    value: patientHemophiliaType,
-                    onTap: () => _showHemophiliaTypeDialog(),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  _buildPatientWeightTile(),
-                  
-                  const SizedBox(height: 16),
-                  
-                  _buildInfoTile(
-                    icon: Icons.bloodtype,
-                    title: 'Blood Type',
-                    value: patientBloodType.isEmpty ? 'Not specified' : patientBloodType,
-                    onTap: () => _showBloodTypeDialog(),
-                  ),
-                  
-                  const SizedBox(height: 40),
-                  
-                  // Save Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _saveProfile,
-                      icon: const Icon(
-                        Icons.save,
-                        color: Colors.white,
-                        size: 20,
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Caregiver',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      label: const Text(
-                        'Save Changes',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Personal Information Section
+                    _buildSectionHeader(
+                        'Personal Information', Icons.person_outline),
+                    const SizedBox(height: 16),
+
+                    _buildInfoTile(
+                      icon: Icons.wc,
+                      title: 'Gender',
+                      value: gender,
+                      onTap: () => _showGenderDialog(),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _buildInfoTile(
+                      icon: Icons.cake,
+                      title: 'Date of Birth',
+                      value: dob == null
+                          ? 'Not set'
+                          : '${dob!.day}/${dob!.month}/${dob!.year}',
+                      onTap: () => _selectDateOfBirth(),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Caregiving Information Section
+                    _buildSectionHeader(
+                        'Caregiving Information', Icons.family_restroom),
+                    const SizedBox(height: 16),
+
+                    _buildInfoTile(
+                      icon: Icons.people,
+                      title: 'Relationship to Patient',
+                      value: relationship,
+                      onTap: () => _showRelationshipDialog(),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Patient Information Section
+                    _buildSectionHeader(
+                        'Patient Information', Icons.local_hospital),
+                    const SizedBox(height: 16),
+
+                    _buildPatientNameTile(),
+
+                    const SizedBox(height: 16),
+
+                    _buildPatientAgeTile(),
+
+                    const SizedBox(height: 16),
+
+                    _buildInfoTile(
+                      icon: Icons.wc,
+                      title: 'Patient Gender',
+                      value: patientGender,
+                      onTap: () => _showPatientGenderDialog(),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _buildInfoTile(
+                      icon: Icons.cake,
+                      title: 'Patient Date of Birth',
+                      value: patientDob == null
+                          ? 'Not set'
+                          : '${patientDob!.day}/${patientDob!.month}/${patientDob!.year}',
+                      onTap: () => _selectPatientDateOfBirth(),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _buildInfoTile(
+                      icon: Icons.medical_services,
+                      title: 'Hemophilia Type',
+                      value: patientHemophiliaType,
+                      onTap: () => _showHemophiliaTypeDialog(),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _buildPatientWeightTile(),
+
+                    const SizedBox(height: 16),
+
+                    _buildInfoTile(
+                      icon: Icons.bloodtype,
+                      title: 'Blood Type',
+                      value: patientBloodType.isEmpty
+                          ? 'Not specified'
+                          : patientBloodType,
+                      onTap: () => _showBloodTypeDialog(),
+                    ),
+
+                    const SizedBox(height: 40),
+
+                    // Save Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: _isLoading ? null : _saveProfile,
+                        icon: const Icon(
+                          Icons.save,
                           color: Colors.white,
+                          size: 20,
                         ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                        label: const Text(
+                          'Save Changes',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
     );
@@ -492,14 +522,18 @@ class _CaregiverInfoSettingsState extends State<CaregiverInfoSettings> {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: genderOptions.map((g) => 
-            ListTile(
-              title: Text(g),
-              onTap: () => Navigator.pop(context, g),
-              trailing: gender == g ? const Icon(Icons.check, color: Colors.redAccent) : null,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ).toList(),
+          children: genderOptions
+              .map(
+                (g) => ListTile(
+                  title: Text(g),
+                  onTap: () => Navigator.pop(context, g),
+                  trailing: gender == g
+                      ? const Icon(Icons.check, color: Colors.redAccent)
+                      : null,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              )
+              .toList(),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -517,14 +551,18 @@ class _CaregiverInfoSettingsState extends State<CaregiverInfoSettings> {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: relationshipOptions.map((r) => 
-            ListTile(
-              title: Text(r),
-              onTap: () => Navigator.pop(context, r),
-              trailing: relationship == r ? const Icon(Icons.check, color: Colors.redAccent) : null,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ).toList(),
+          children: relationshipOptions
+              .map(
+                (r) => ListTile(
+                  title: Text(r),
+                  onTap: () => Navigator.pop(context, r),
+                  trailing: relationship == r
+                      ? const Icon(Icons.check, color: Colors.redAccent)
+                      : null,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              )
+              .toList(),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -708,14 +746,18 @@ class _CaregiverInfoSettingsState extends State<CaregiverInfoSettings> {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: genderOptions.map((g) => 
-            ListTile(
-              title: Text(g),
-              onTap: () => Navigator.pop(context, g),
-              trailing: patientGender == g ? const Icon(Icons.check, color: Colors.redAccent) : null,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ).toList(),
+          children: genderOptions
+              .map(
+                (g) => ListTile(
+                  title: Text(g),
+                  onTap: () => Navigator.pop(context, g),
+                  trailing: patientGender == g
+                      ? const Icon(Icons.check, color: Colors.redAccent)
+                      : null,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              )
+              .toList(),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -733,14 +775,18 @@ class _CaregiverInfoSettingsState extends State<CaregiverInfoSettings> {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: hemophiliaTypeOptions.map((h) => 
-            ListTile(
-              title: Text(h),
-              onTap: () => Navigator.pop(context, h),
-              trailing: patientHemophiliaType == h ? const Icon(Icons.check, color: Colors.redAccent) : null,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ).toList(),
+          children: hemophiliaTypeOptions
+              .map(
+                (h) => ListTile(
+                  title: Text(h),
+                  onTap: () => Navigator.pop(context, h),
+                  trailing: patientHemophiliaType == h
+                      ? const Icon(Icons.check, color: Colors.redAccent)
+                      : null,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              )
+              .toList(),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -758,14 +804,18 @@ class _CaregiverInfoSettingsState extends State<CaregiverInfoSettings> {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: bloodTypeOptions.map((b) => 
-            ListTile(
-              title: Text(b),
-              onTap: () => Navigator.pop(context, b),
-              trailing: patientBloodType == b ? const Icon(Icons.check, color: Colors.redAccent) : null,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ).toList(),
+          children: bloodTypeOptions
+              .map(
+                (b) => ListTile(
+                  title: Text(b),
+                  onTap: () => Navigator.pop(context, b),
+                  trailing: patientBloodType == b
+                      ? const Icon(Icons.check, color: Colors.redAccent)
+                      : null,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              )
+              .toList(),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

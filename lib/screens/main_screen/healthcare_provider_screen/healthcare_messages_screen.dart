@@ -5,6 +5,7 @@ import 'package:hemophilia_manager/widgets/offline_indicator.dart';
 import 'dart:async';
 import '../shared/chat_screen.dart';
 import '../../../services/message_service.dart';
+import '../../../services/doctor_availability_service.dart';
 
 class HealthcareMessagesScreen extends StatefulWidget {
   const HealthcareMessagesScreen({super.key});
@@ -17,12 +18,26 @@ class HealthcareMessagesScreen extends StatefulWidget {
 class _HealthcareMessagesScreenState extends State<HealthcareMessagesScreen> {
   final TextEditingController _searchController = TextEditingController();
   final MessageService _messageService = MessageService();
+  final DoctorAvailabilityService _availabilityService =
+      DoctorAvailabilityService();
 
   List<Map<String, dynamic>> _messages = [];
   List<Map<String, dynamic>> _filteredMessages = [];
   bool _isLoading = true;
   String? _currentUserId;
   StreamSubscription<List<Map<String, dynamic>>>? _conversationSubscription;
+
+  // Availability settings
+  bool _isAvailableForMessages = true;
+  TimeOfDay _startTime = const TimeOfDay(hour: 8, minute: 0);
+  TimeOfDay _endTime = const TimeOfDay(hour: 18, minute: 0);
+  List<String> _availableDays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday'
+  ];
 
   @override
   void initState() {
@@ -43,7 +58,50 @@ class _HealthcareMessagesScreenState extends State<HealthcareMessagesScreen> {
       setState(() {
         _currentUserId = user.uid;
       });
+      await _loadAvailabilitySettings();
       _setupConversationStream();
+    }
+  }
+
+  Future<void> _loadAvailabilitySettings() async {
+    if (_currentUserId == null) return;
+
+    try {
+      final settings =
+          await _availabilityService.getAvailabilitySettings(_currentUserId!);
+      if (settings != null) {
+        setState(() {
+          _isAvailableForMessages = settings['isAvailable'] ?? true;
+          _startTime = TimeOfDay(
+            hour: settings['startTime']['hour'] ?? 8,
+            minute: settings['startTime']['minute'] ?? 0,
+          );
+          _endTime = TimeOfDay(
+            hour: settings['endTime']['hour'] ?? 18,
+            minute: settings['endTime']['minute'] ?? 0,
+          );
+          _availableDays = List<String>.from(settings['availableDays'] ??
+              ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
+        });
+      }
+    } catch (e) {
+      print('Error loading availability settings: $e');
+    }
+  }
+
+  Future<void> _saveAvailabilitySettings() async {
+    if (_currentUserId == null) return;
+
+    try {
+      await _availabilityService.saveAvailabilitySettings(
+        doctorUid: _currentUserId!,
+        isAvailable: _isAvailableForMessages,
+        startTime: _startTime,
+        endTime: _endTime,
+        availableDays: _availableDays,
+      );
+    } catch (e) {
+      print('Error saving availability settings: $e');
     }
   }
 
@@ -130,6 +188,319 @@ class _HealthcareMessagesScreenState extends State<HealthcareMessagesScreen> {
     });
   }
 
+  void _showAvailabilitySettings() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.8,
+        maxChildSize: 0.95,
+        minChildSize: 0.5,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                height: 4,
+                width: 40,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    const Icon(
+                      FontAwesomeIcons.cog,
+                      color: Colors.redAccent,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Message Availability Settings',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 0),
+              // Settings content
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    // Overall availability toggle
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _isAvailableForMessages
+                                  ? FontAwesomeIcons.toggleOn
+                                  : FontAwesomeIcons.toggleOff,
+                              color: _isAvailableForMessages
+                                  ? Colors.green
+                                  : Colors.grey,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Available for Messages',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _isAvailableForMessages
+                                        ? 'Patients can send you messages'
+                                        : 'Messages are disabled',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: _isAvailableForMessages,
+                              onChanged: (value) {
+                                setState(() {
+                                  _isAvailableForMessages = value;
+                                });
+                                _saveAvailabilitySettings();
+                                Navigator.pop(context);
+                                _showAvailabilitySettings();
+                              },
+                              activeColor: Colors.redAccent,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    if (_isAvailableForMessages) ...[
+                      const SizedBox(height: 24),
+
+                      // Available hours section
+                      const Text(
+                        'Available Hours',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              ListTile(
+                                leading: const Icon(
+                                  FontAwesomeIcons.sun,
+                                  color: Colors.orange,
+                                ),
+                                title: const Text('Start Time'),
+                                subtitle: Text(_formatTime(_startTime)),
+                                trailing: const Icon(Icons.arrow_forward_ios,
+                                    size: 16),
+                                onTap: () => _selectTime(true),
+                              ),
+                              const Divider(),
+                              ListTile(
+                                leading: const Icon(
+                                  FontAwesomeIcons.moon,
+                                  color: Colors.indigo,
+                                ),
+                                title: const Text('End Time'),
+                                subtitle: Text(_formatTime(_endTime)),
+                                trailing: const Icon(Icons.arrow_forward_ios,
+                                    size: 16),
+                                onTap: () => _selectTime(false),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Available days section
+                      const Text(
+                        'Available Days',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Column(
+                            children: [
+                              'Monday',
+                              'Tuesday',
+                              'Wednesday',
+                              'Thursday',
+                              'Friday',
+                              'Saturday',
+                              'Sunday'
+                            ]
+                                .map((day) => CheckboxListTile(
+                                      title: Text(day),
+                                      value: _availableDays.contains(day),
+                                      activeColor: Colors.redAccent,
+                                      onChanged: (bool? value) {
+                                        setState(() {
+                                          if (value == true) {
+                                            _availableDays.add(day);
+                                          } else {
+                                            _availableDays.remove(day);
+                                          }
+                                        });
+                                        _saveAvailabilitySettings();
+                                        Navigator.pop(context);
+                                        _showAvailabilitySettings();
+                                      },
+                                    ))
+                                .toList(),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Info card
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              FontAwesomeIcons.info,
+                              color: Colors.blue.shade600,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Patients will see your availability status and can only send messages during your available hours.',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _selectTime(bool isStartTime) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: isStartTime ? _startTime : _endTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.redAccent,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        if (isStartTime) {
+          _startTime = picked;
+        } else {
+          _endTime = picked;
+        }
+      });
+      _saveAvailabilitySettings();
+      Navigator.pop(context);
+      _showAvailabilitySettings();
+    }
+  }
+
+  String _formatTime(TimeOfDay time) {
+    final hour = time.hourOfPeriod;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    return '${hour == 0 ? 12 : hour}:$minute $period';
+  }
+
+  bool _isCurrentlyAvailable() {
+    if (!_isAvailableForMessages) return false;
+
+    final currentDay = _getCurrentDayName();
+
+    if (!_availableDays.contains(currentDay)) return false;
+
+    final currentTime = TimeOfDay.now();
+    final currentMinutes = currentTime.hour * 60 + currentTime.minute;
+    final startMinutes = _startTime.hour * 60 + _startTime.minute;
+    final endMinutes = _endTime.hour * 60 + _endTime.minute;
+
+    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+  }
+
+  String _getCurrentDayName() {
+    final weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+    return weekdays[DateTime.now().weekday - 1];
+  }
+
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
@@ -191,52 +562,10 @@ class _HealthcareMessagesScreenState extends State<HealthcareMessagesScreen> {
         actions: [
           IconButton(
             onPressed: () {
-              // TODO: Implement priority filter or sorting
-              showModalBottomSheet(
-                context: context,
-                builder: (context) => Container(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Message Filters',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      ListTile(
-                        leading: const Icon(
-                          FontAwesomeIcons.exclamation,
-                          color: Colors.red,
-                        ),
-                        title: const Text('Urgent Messages'),
-                        onTap: () => Navigator.pop(context),
-                      ),
-                      ListTile(
-                        leading: const Icon(
-                          FontAwesomeIcons.clock,
-                          color: Colors.orange,
-                        ),
-                        title: const Text('Recent Messages'),
-                        onTap: () => Navigator.pop(context),
-                      ),
-                      ListTile(
-                        leading: const Icon(
-                          FontAwesomeIcons.envelope,
-                          color: Colors.blue,
-                        ),
-                        title: const Text('Unread Messages'),
-                        onTap: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                ),
-              );
+              _showAvailabilitySettings();
             },
-            icon: const Icon(FontAwesomeIcons.filter, size: 20),
+            icon: const Icon(FontAwesomeIcons.cog, size: 20),
+            tooltip: 'Message Settings',
           ),
         ],
       ),
@@ -270,6 +599,99 @@ class _HealthcareMessagesScreenState extends State<HealthcareMessagesScreen> {
               ),
             ),
           ),
+
+          // Availability Status Indicator
+          if (_isAvailableForMessages)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: _isCurrentlyAvailable()
+                    ? Colors.green.shade50
+                    : Colors.blue.shade50,
+                border: Border.all(
+                    color: _isCurrentlyAvailable()
+                        ? Colors.green.shade200
+                        : Colors.blue.shade200),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    FontAwesomeIcons.circle,
+                    color: _isCurrentlyAvailable()
+                        ? Colors.green.shade600
+                        : Colors.blue.shade600,
+                    size: 8,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _isCurrentlyAvailable()
+                          ? 'Currently available for messages'
+                          : 'Available: ${_formatTime(_startTime)} - ${_formatTime(_endTime)}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _isCurrentlyAvailable()
+                            ? Colors.green.shade700
+                            : Colors.blue.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    _isCurrentlyAvailable()
+                        ? 'Online'
+                        : '${_availableDays.length} days/week',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _isCurrentlyAvailable()
+                          ? Colors.green.shade600
+                          : Colors.blue.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                border: Border.all(color: Colors.orange.shade200),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    FontAwesomeIcons.circle,
+                    color: Colors.orange.shade600,
+                    size: 8,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Currently unavailable for messages',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.orange.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Offline',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.orange.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          const SizedBox(height: 16),
 
           // Messages List
           Expanded(

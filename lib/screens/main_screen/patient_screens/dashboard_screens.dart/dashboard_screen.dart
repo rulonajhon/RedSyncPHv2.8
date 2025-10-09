@@ -22,11 +22,18 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   String _userName = '';
   bool _isLoading = true;
   bool _isGuest = false;
+  String _userRole = '';
+  bool _tipDismissed = false;
   List<Map<String, dynamic>> _recentActivities = [];
   List<Map<String, dynamic>> _todaysReminders = [];
   int _monthlyActivitiesCount = 0;
   int _weeklyInfusionsCount = 0;
   int _weeklyBleedsCount = 0;
+
+  // Check if user is a starter (has minimal activity)
+  bool get _isStarterUser {
+    return _recentActivities.length <= 2 && _monthlyActivitiesCount <= 3;
+  }
 
   @override
   void initState() {
@@ -76,8 +83,13 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     try {
       // Check if user is a guest
       final guestStatus = await _secureStorage.read(key: 'isGuest');
+      final userRole = await _secureStorage.read(key: 'userRole') ?? '';
+      final tipDismissed =
+          await _secureStorage.read(key: 'starter_tip_dismissed') == 'true';
       setState(() {
         _isGuest = guestStatus == 'true';
+        _userRole = userRole;
+        _tipDismissed = tipDismissed;
       });
 
       final user = FirebaseAuth.instance.currentUser;
@@ -86,6 +98,8 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
         if (userData != null) {
           setState(() {
             _userName = _isGuest ? 'Guest' : (userData['name'] ?? 'User');
+            _userRole = userData['role'] ??
+                _userRole; // Use Firestore role if available
           });
         } else {
           setState(() {
@@ -98,10 +112,19 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
       setState(() {
         _userName = 'User';
         _isGuest = false;
+        _userRole = '';
+        _tipDismissed = false;
       });
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _dismissTip() async {
+    await _secureStorage.write(key: 'starter_tip_dismissed', value: 'true');
+    setState(() {
+      _tipDismissed = true;
+    });
   }
 
   Future<void> _loadRecentActivities() async {
@@ -594,6 +617,12 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
                           ),
                         ),
                       ),
+
+                    const SizedBox(height: 16),
+
+                    // Show tip for starter users (users with minimal activity)
+                    if (_isStarterUser && !_isGuest && !_tipDismissed)
+                      _buildStarterTip(),
                   ],
                 ),
                 const SizedBox(
@@ -1114,6 +1143,128 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
             subtitle,
             style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStarterTip() {
+    final isCaregiver = _userRole.toLowerCase() == 'caregiver';
+    final roleText = isCaregiver ? 'caregiver' : 'hemophilia patient';
+    final actionText = isCaregiver
+        ? 'Connect with healthcare providers to better manage your patient\'s care'
+        : 'Connect with a healthcare provider for better care management';
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade50, Colors.indigo.shade50],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blue.shade200, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.shade100.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  FontAwesomeIcons.lightbulb,
+                  color: Colors.blue.shade600,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Getting Started Tip',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      actionText,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: _dismissTip,
+                icon: Icon(
+                  Icons.close,
+                  size: 20,
+                  color: Colors.blue.shade600,
+                ),
+                tooltip: 'Dismiss tip',
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'As a ${_isGuest ? 'new user' : _userName.toLowerCase().contains('guest') ? 'new user' : roleText}, connecting with healthcare providers can help you ${isCaregiver ? 'receive expert guidance and coordinate better care for your patient' : 'receive personalized care recommendations and monitor your health more effectively'}.',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.blue.shade700,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushNamed(context, '/care_provider');
+              },
+              icon: const Icon(FontAwesomeIcons.userDoctor, size: 16),
+              label: Text(
+                isCaregiver
+                    ? 'Find Healthcare Providers'
+                    : 'Find Care Provider',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade600,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+            ),
           ),
         ],
       ),

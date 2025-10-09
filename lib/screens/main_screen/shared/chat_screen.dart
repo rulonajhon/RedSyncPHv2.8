@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../../../services/message_service.dart';
+import '../../../services/doctor_availability_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final Map<String, dynamic> participant;
@@ -24,17 +25,21 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final MessageService _messageService = MessageService();
+  final DoctorAvailabilityService _availabilityService =
+      DoctorAvailabilityService();
 
   List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
   bool _isSending = false;
   String? _currentUserId;
   StreamSubscription<List<Map<String, dynamic>>>? _messageSubscription;
+  Map<String, dynamic>? _doctorAvailability;
 
   @override
   void initState() {
     super.initState();
     _loadCurrentUser();
+    _checkDoctorAvailability();
     // Add listener to rebuild when text changes for instant color update
     _messageController.addListener(() {
       setState(() {});
@@ -82,29 +87,59 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageSubscription = _messageService
         .getMessagesStream(_currentUserId!, participantId)
         .listen(
-          (messages) {
-            print('Received ${messages.length} messages in chat stream');
-            setState(() {
-              _messages = messages;
-              _isLoading = false;
-            });
-            _scrollToBottom();
-          },
-          onError: (error) {
-            print('Error in message stream: $error');
-            setState(() => _isLoading = false);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Failed to load messages: $error'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          },
+      (messages) {
+        print('Received ${messages.length} messages in chat stream');
+        setState(() {
+          _messages = messages;
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      },
+      onError: (error) {
+        print('Error in message stream: $error');
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load messages: $error'),
+            backgroundColor: Colors.red,
+          ),
         );
+      },
+    );
+  }
+
+  Future<void> _checkDoctorAvailability() async {
+    // Only check availability if patient is chatting with a doctor
+    if (widget.currentUserRole == 'patient' &&
+        (widget.participant['role'] == 'doctor' ||
+            widget.participant['role'] == 'healthcare_provider')) {
+      try {
+        final availability = await _availabilityService.checkDoctorAvailability(
+            widget.participant['id'] ?? widget.participant['uid'] ?? '');
+        setState(() {
+          _doctorAvailability = availability;
+        });
+      } catch (e) {
+        print('Error checking doctor availability: $e');
+      }
+    }
   }
 
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty || _isSending) return;
+
+    // Check if patient is trying to message a doctor
+    if (widget.currentUserRole == 'patient' &&
+        (widget.participant['role'] == 'doctor' ||
+            widget.participant['role'] == 'healthcare_provider')) {
+      final availability = await _availabilityService.checkDoctorAvailability(
+          widget.participant['id'] ?? widget.participant['uid'] ?? '');
+
+      if (!availability['isAvailable']) {
+        _showAvailabilityWarning(availability);
+        return;
+      }
+    }
 
     final messageText = _messageController.text.trim();
     _messageController.clear();
@@ -158,6 +193,120 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       }
     });
+  }
+
+  void _showAvailabilityWarning(Map<String, dynamic> availability) {
+    String dialogTitle;
+    String dialogMessage;
+    Color iconColor;
+    IconData iconData;
+
+    switch (availability['reason']) {
+      case 'messages_disabled':
+        dialogTitle = 'Messages Disabled';
+        dialogMessage =
+            '${widget.participant['name'] ?? 'This doctor'} is currently not accepting messages. Please try again later.';
+        iconColor = Colors.red;
+        iconData = FontAwesomeIcons.ban;
+        break;
+      case 'day_unavailable':
+        final availableDays =
+            List<String>.from(availability['availableDays'] ?? []);
+        dialogTitle = 'Not Available Today';
+        dialogMessage =
+            '${widget.participant['name'] ?? 'This doctor'} is not available for messages today.\n\nAvailable days: ${availableDays.join(', ')}';
+        iconColor = Colors.orange;
+        iconData = FontAwesomeIcons.calendar;
+        break;
+      case 'time_unavailable':
+        dialogTitle = 'Outside Office Hours';
+        final availableHours = availability['availableHours'];
+        dialogMessage =
+            '${widget.participant['name'] ?? 'This doctor'} is currently outside their available hours.\n\nAvailable: ${availableHours['start']} - ${availableHours['end']}';
+        iconColor = Colors.blue;
+        iconData = FontAwesomeIcons.clock;
+        break;
+      default:
+        dialogTitle = 'Doctor Unavailable';
+        dialogMessage = availability['message'] ??
+            '${widget.participant['name'] ?? 'This doctor'} is currently unavailable for messages.';
+        iconColor = Colors.grey;
+        iconData = FontAwesomeIcons.exclamation;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(iconData, color: iconColor, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  dialogTitle,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: iconColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                dialogMessage,
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      FontAwesomeIcons.lightbulb,
+                      color: Colors.blue.shade600,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Your message will be saved as a draft and you can send it when the doctor becomes available.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'Understood',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -232,30 +381,294 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: IconButton(
-              icon: const Icon(FontAwesomeIcons.phone, size: 16),
-              color: Colors.grey.shade600,
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Voice call feature coming soon'),
-                    backgroundColor: Colors.grey.shade600,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+          // Doctor Availability Status Indicator
+          if (widget.currentUserRole == 'patient' &&
+              (widget.participant['role'] == 'doctor' ||
+                  widget.participant['role'] == 'healthcare_provider'))
+            GestureDetector(
+              onTap: () {
+                if (_doctorAvailability != null &&
+                    !_doctorAvailability!['isAvailable']) {
+                  _showAvailabilityWarning(_doctorAvailability!);
+                }
               },
+              child: Container(
+                margin: const EdgeInsets.only(right: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _doctorAvailability != null &&
+                          _doctorAvailability!['isAvailable']
+                      ? Colors.green.shade50
+                      : _doctorAvailability != null &&
+                              !_doctorAvailability!['isAvailable']
+                          ? (_doctorAvailability!['reason'] ==
+                                  'messages_disabled'
+                              ? Colors.red.shade50
+                              : _doctorAvailability!['reason'] ==
+                                      'day_unavailable'
+                                  ? Colors.orange.shade50
+                                  : Colors.blue.shade50)
+                          : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _doctorAvailability != null &&
+                            _doctorAvailability!['isAvailable']
+                        ? Colors.green.shade200
+                        : _doctorAvailability != null &&
+                                !_doctorAvailability!['isAvailable']
+                            ? (_doctorAvailability!['reason'] ==
+                                    'messages_disabled'
+                                ? Colors.red.shade200
+                                : _doctorAvailability!['reason'] ==
+                                        'day_unavailable'
+                                    ? Colors.orange.shade200
+                                    : Colors.blue.shade200)
+                            : Colors.grey.shade200,
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _doctorAvailability != null &&
+                                _doctorAvailability!['isAvailable']
+                            ? Colors.green.shade600
+                            : _doctorAvailability != null &&
+                                    !_doctorAvailability!['isAvailable']
+                                ? (_doctorAvailability!['reason'] ==
+                                        'messages_disabled'
+                                    ? Colors.red.shade600
+                                    : _doctorAvailability!['reason'] ==
+                                            'day_unavailable'
+                                        ? Colors.orange.shade600
+                                        : Colors.blue.shade600)
+                                : Colors.grey.shade400,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      _doctorAvailability != null &&
+                              _doctorAvailability!['isAvailable']
+                          ? FontAwesomeIcons.circleCheck
+                          : _doctorAvailability != null &&
+                                  !_doctorAvailability!['isAvailable']
+                              ? (_doctorAvailability!['reason'] ==
+                                      'messages_disabled'
+                                  ? FontAwesomeIcons.ban
+                                  : _doctorAvailability!['reason'] ==
+                                          'day_unavailable'
+                                      ? FontAwesomeIcons.calendar
+                                      : FontAwesomeIcons.clock)
+                              : FontAwesomeIcons.circle,
+                      size: 14,
+                      color: _doctorAvailability != null &&
+                              _doctorAvailability!['isAvailable']
+                          ? Colors.green.shade700
+                          : _doctorAvailability != null &&
+                                  !_doctorAvailability!['isAvailable']
+                              ? (_doctorAvailability!['reason'] ==
+                                      'messages_disabled'
+                                  ? Colors.red.shade700
+                                  : _doctorAvailability!['reason'] ==
+                                          'day_unavailable'
+                                      ? Colors.orange.shade700
+                                      : Colors.blue.shade700)
+                              : Colors.grey.shade500,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _doctorAvailability != null &&
+                              _doctorAvailability!['isAvailable']
+                          ? 'Available'
+                          : _doctorAvailability != null &&
+                                  !_doctorAvailability!['isAvailable']
+                              ? (_doctorAvailability!['reason'] ==
+                                      'messages_disabled'
+                                  ? 'Messages Disabled'
+                                  : _doctorAvailability!['reason'] ==
+                                          'day_unavailable'
+                                      ? 'Away Today'
+                                      : 'Busy')
+                              : 'Checking...',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: _doctorAvailability != null &&
+                                _doctorAvailability!['isAvailable']
+                            ? Colors.green.shade800
+                            : _doctorAvailability != null &&
+                                    !_doctorAvailability!['isAvailable']
+                                ? (_doctorAvailability!['reason'] ==
+                                        'messages_disabled'
+                                    ? Colors.red.shade800
+                                    : _doctorAvailability!['reason'] ==
+                                            'day_unavailable'
+                                        ? Colors.orange.shade800
+                                        : Colors.blue.shade800)
+                                : Colors.grey.shade600,
+                      ),
+                    ),
+                    if (_doctorAvailability != null &&
+                        !_doctorAvailability!['isAvailable']) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        FontAwesomeIcons.infoCircle,
+                        size: 10,
+                        color: _doctorAvailability!['reason'] ==
+                                'messages_disabled'
+                            ? Colors.red.shade600
+                            : _doctorAvailability!['reason'] ==
+                                    'day_unavailable'
+                                ? Colors.orange.shade600
+                                : Colors.blue.shade600,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            )
+          else
+            // Non-doctor participants get a simple status indicator
+            Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.grey.shade200,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.grey.shade400,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Online',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
       body: Column(
         children: [
+          // Doctor Availability Status Banner
+          if (widget.currentUserRole == 'patient' &&
+              (widget.participant['role'] == 'doctor' ||
+                  widget.participant['role'] == 'healthcare_provider') &&
+              _doctorAvailability != null &&
+              !_doctorAvailability!['isAvailable'])
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: _doctorAvailability!['reason'] == 'messages_disabled'
+                    ? Colors.red.shade50
+                    : _doctorAvailability!['reason'] == 'day_unavailable'
+                        ? Colors.orange.shade50
+                        : Colors.blue.shade50,
+                border: Border(
+                  bottom: BorderSide(
+                    color: _doctorAvailability!['reason'] == 'messages_disabled'
+                        ? Colors.red.shade200
+                        : _doctorAvailability!['reason'] == 'day_unavailable'
+                            ? Colors.orange.shade200
+                            : Colors.blue.shade200,
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _doctorAvailability!['reason'] == 'messages_disabled'
+                        ? FontAwesomeIcons.ban
+                        : _doctorAvailability!['reason'] == 'day_unavailable'
+                            ? FontAwesomeIcons.calendar
+                            : FontAwesomeIcons.clock,
+                    color: _doctorAvailability!['reason'] == 'messages_disabled'
+                        ? Colors.red.shade600
+                        : _doctorAvailability!['reason'] == 'day_unavailable'
+                            ? Colors.orange.shade600
+                            : Colors.blue.shade600,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _doctorAvailability!['reason'] == 'messages_disabled'
+                          ? '${widget.participant['name']} has disabled messaging'
+                          : _doctorAvailability!['reason'] == 'day_unavailable'
+                              ? '${widget.participant['name']} is not available today'
+                              : '${widget.participant['name']} is outside available hours',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: _doctorAvailability!['reason'] ==
+                                'messages_disabled'
+                            ? Colors.red.shade700
+                            : _doctorAvailability!['reason'] ==
+                                    'day_unavailable'
+                                ? Colors.orange.shade700
+                                : Colors.blue.shade700,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        _showAvailabilityWarning(_doctorAvailability!),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      'Details',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: _doctorAvailability!['reason'] ==
+                                'messages_disabled'
+                            ? Colors.red.shade600
+                            : _doctorAvailability!['reason'] ==
+                                    'day_unavailable'
+                                ? Colors.orange.shade600
+                                : Colors.blue.shade600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           // Messages List
           Expanded(
             child: _isLoading
@@ -283,68 +696,69 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   )
                 : _messages.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(40),
-                          ),
-                          child: Icon(
-                            FontAwesomeIcons.comments,
-                            size: 32,
-                            color: Colors.grey.shade400,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'No messages yet',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 48),
-                          child: Text(
-                            'Start a conversation with ${widget.participant['name']}',
-                            style: TextStyle(
-                              color: Colors.grey.shade500,
-                              fontSize: 16,
-                              height: 1.4,
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(40),
+                              ),
+                              child: Icon(
+                                FontAwesomeIcons.comments,
+                                size: 32,
+                                color: Colors.grey.shade400,
+                              ),
                             ),
-                            textAlign: TextAlign.center,
-                          ),
+                            const SizedBox(height: 24),
+                            Text(
+                              'No messages yet',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 48),
+                              child: Text(
+                                'Start a conversation with ${widget.participant['name']}',
+                                style: TextStyle(
+                                  color: Colors.grey.shade500,
+                                  fontSize: 16,
+                                  height: 1.4,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final message = _messages[index];
-                      final isCurrentUser =
-                          message['senderId'] == _currentUserId;
-                      final showAvatar =
-                          index == _messages.length - 1 ||
-                          _messages[index + 1]['senderId'] !=
-                              message['senderId'];
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 16),
+                        itemCount: _messages.length,
+                        itemBuilder: (context, index) {
+                          final message = _messages[index];
+                          final isCurrentUser =
+                              message['senderId'] == _currentUserId;
+                          final showAvatar = index == _messages.length - 1 ||
+                              _messages[index + 1]['senderId'] !=
+                                  message['senderId'];
 
-                      return _buildMessageBubble(
-                        message,
-                        isCurrentUser,
-                        showAvatar,
-                      );
-                    },
-                  ),
+                          return _buildMessageBubble(
+                            message,
+                            isCurrentUser,
+                            showAvatar,
+                          );
+                        },
+                      ),
           ),
 
           // Message Input
@@ -363,19 +777,56 @@ class _ChatScreenState extends State<ChatScreen> {
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
+                          color: widget.currentUserRole == 'patient' &&
+                                  (widget.participant['role'] == 'doctor' ||
+                                      widget.participant['role'] ==
+                                          'healthcare_provider') &&
+                                  _doctorAvailability != null &&
+                                  !_doctorAvailability!['isAvailable']
+                              ? Colors.grey.shade100 // Disabled appearance
+                              : Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: Colors.grey.shade200,
+                            color: widget.currentUserRole == 'patient' &&
+                                    (widget.participant['role'] == 'doctor' ||
+                                        widget.participant['role'] ==
+                                            'healthcare_provider') &&
+                                    _doctorAvailability != null &&
+                                    !_doctorAvailability!['isAvailable']
+                                ? Colors.grey.shade300 // Disabled border
+                                : Colors.grey.shade200,
                             width: 1,
                           ),
                         ),
                         child: TextField(
                           controller: _messageController,
+                          enabled: !(widget.currentUserRole == 'patient' &&
+                              (widget.participant['role'] == 'doctor' ||
+                                  widget.participant['role'] ==
+                                      'healthcare_provider') &&
+                              _doctorAvailability != null &&
+                              !_doctorAvailability!['isAvailable']),
                           decoration: InputDecoration(
-                            hintText: 'Type a message...',
+                            hintText: widget.currentUserRole == 'patient' &&
+                                    (widget.participant['role'] == 'doctor' ||
+                                        widget.participant['role'] ==
+                                            'healthcare_provider') &&
+                                    _doctorAvailability != null &&
+                                    !_doctorAvailability!['isAvailable']
+                                ? (_doctorAvailability!['reason'] ==
+                                        'messages_disabled'
+                                    ? 'Doctor has disabled messaging...'
+                                    : 'Doctor is currently unavailable...')
+                                : 'Type a message...',
                             hintStyle: TextStyle(
-                              color: Colors.grey.shade500,
+                              color: widget.currentUserRole == 'patient' &&
+                                      (widget.participant['role'] == 'doctor' ||
+                                          widget.participant['role'] ==
+                                              'healthcare_provider') &&
+                                      _doctorAvailability != null &&
+                                      !_doctorAvailability!['isAvailable']
+                                  ? Colors.red.shade400
+                                  : Colors.grey.shade500,
                               fontSize: 16,
                             ),
                             border: InputBorder.none,
@@ -396,13 +847,32 @@ class _ChatScreenState extends State<ChatScreen> {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: _messageController.text.trim().isNotEmpty
-                            ? Colors.redAccent
-                            : Colors.grey.shade300,
+                        color: _isSending
+                            ? Colors.grey.shade300
+                            : (widget.currentUserRole == 'patient' &&
+                                    (widget.participant['role'] == 'doctor' ||
+                                        widget.participant['role'] ==
+                                            'healthcare_provider') &&
+                                    _doctorAvailability != null &&
+                                    !_doctorAvailability!['isAvailable'])
+                                ? Colors.grey
+                                    .shade300 // Disabled when doctor unavailable
+                                : _messageController.text.trim().isNotEmpty
+                                    ? Colors.redAccent
+                                    : Colors.grey.shade300,
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: IconButton(
-                        onPressed: _isSending ? null : _sendMessage,
+                        onPressed: _isSending
+                            ? null
+                            : (widget.currentUserRole == 'patient' &&
+                                    (widget.participant['role'] == 'doctor' ||
+                                        widget.participant['role'] ==
+                                            'healthcare_provider') &&
+                                    _doctorAvailability != null &&
+                                    !_doctorAvailability!['isAvailable'])
+                                ? null // Disable button when doctor unavailable
+                                : _sendMessage,
                         icon: _isSending
                             ? const SizedBox(
                                 width: 20,
@@ -412,9 +882,18 @@ class _ChatScreenState extends State<ChatScreen> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Icon(
+                            : Icon(
                                 FontAwesomeIcons.paperPlane,
-                                color: Colors.white,
+                                color: (widget.currentUserRole == 'patient' &&
+                                        (widget.participant['role'] ==
+                                                'doctor' ||
+                                            widget.participant['role'] ==
+                                                'healthcare_provider') &&
+                                        _doctorAvailability != null &&
+                                        !_doctorAvailability!['isAvailable'])
+                                    ? Colors.grey
+                                        .shade500 // Grayed out when disabled
+                                    : Colors.white,
                                 size: 16,
                               ),
                       ),
@@ -437,9 +916,8 @@ class _ChatScreenState extends State<ChatScreen> {
     return Padding(
       padding: EdgeInsets.only(bottom: showAvatar ? 16 : 4),
       child: Row(
-        mainAxisAlignment: isCurrentUser
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isCurrentUser) ...[
@@ -467,9 +945,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   : CrossAxisAlignment.start,
               children: [
                 GestureDetector(
-                  onLongPress: () => _showDeleteMessageDialog(message, isCurrentUser),
+                  onLongPress: () =>
+                      _showDeleteMessageDialog(message, isCurrentUser),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: isCurrentUser ? Colors.redAccent : Colors.white,
                       borderRadius: BorderRadius.circular(20).copyWith(
@@ -492,9 +972,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Text(
                       message['message'] ?? '',
                       style: TextStyle(
-                        color: isCurrentUser
-                            ? Colors.white
-                            : Colors.grey.shade800,
+                        color:
+                            isCurrentUser ? Colors.white : Colors.grey.shade800,
                         fontSize: 16,
                         height: 1.3,
                       ),
@@ -567,7 +1046,8 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _showDeleteMessageDialog(Map<String, dynamic> message, bool isCurrentUser) {
+  void _showDeleteMessageDialog(
+      Map<String, dynamic> message, bool isCurrentUser) {
     // Only show delete option for the message sender
     if (!isCurrentUser) {
       return;
@@ -578,7 +1058,8 @@ class _ChatScreenState extends State<ChatScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Delete Message'),
-          content: const Text('Are you sure you want to delete this message? This action cannot be undone.'),
+          content: const Text(
+              'Are you sure you want to delete this message? This action cannot be undone.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -603,11 +1084,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _deleteMessage(Map<String, dynamic> message) async {
     try {
       // Get message ID from Firestore document
-      final messageId = message['id']; // This should be set when loading messages
-      
+      final messageId =
+          message['id']; // This should be set when loading messages
+
       print('Attempting to delete message with ID: $messageId');
       print('Current user ID: $_currentUserId');
-      
+
       if (messageId == null) {
         print('Error: Message ID is null');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -619,10 +1101,11 @@ class _ChatScreenState extends State<ChatScreen> {
         return;
       }
 
-      final success = await _messageService.deleteMessage(messageId, _currentUserId!);
-      
+      final success =
+          await _messageService.deleteMessage(messageId, _currentUserId!);
+
       print('Delete message result: $success');
-      
+
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

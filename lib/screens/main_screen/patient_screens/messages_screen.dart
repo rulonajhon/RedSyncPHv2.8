@@ -5,6 +5,7 @@ import 'package:hemophilia_manager/widgets/offline_indicator.dart';
 import 'dart:async';
 import '../shared/chat_screen.dart';
 import '../../../services/message_service.dart';
+import '../../../services/doctor_availability_service.dart';
 import 'compose_message_screen.dart';
 
 class MessagesScreen extends StatefulWidget {
@@ -17,6 +18,8 @@ class MessagesScreen extends StatefulWidget {
 class _MessagesScreenState extends State<MessagesScreen> {
   final TextEditingController _searchController = TextEditingController();
   final MessageService _messageService = MessageService();
+  final DoctorAvailabilityService _availabilityService =
+      DoctorAvailabilityService();
 
   List<Map<String, dynamic>> _messages = [];
   List<Map<String, dynamic>> _filteredMessages = [];
@@ -148,8 +151,22 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
   }
 
-  void _openChatScreen(Map<String, dynamic> conversation) {
+  void _openChatScreen(Map<String, dynamic> conversation) async {
     final otherUser = conversation['otherUser'];
+
+    // Check if the other user is a doctor/healthcare provider
+    if (otherUser['role'] == 'doctor' ||
+        otherUser['role'] == 'healthcare_provider') {
+      final availability =
+          await _availabilityService.checkDoctorAvailability(otherUser['id']);
+
+      if (!availability['isAvailable']) {
+        _showAvailabilityDialog(otherUser, availability);
+        return;
+      }
+    }
+
+    // Proceed with opening the chat
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -163,6 +180,146 @@ class _MessagesScreenState extends State<MessagesScreen> {
           currentUserRole: 'patient',
         ),
       ),
+    );
+  }
+
+  void _showAvailabilityDialog(
+      Map<String, dynamic> provider, Map<String, dynamic> availability) {
+    String dialogTitle;
+    String dialogMessage;
+    Color iconColor;
+    IconData iconData;
+
+    switch (availability['reason']) {
+      case 'messages_disabled':
+        dialogTitle = 'Messages Disabled';
+        dialogMessage =
+            'Dr. ${provider['name']} is currently not accepting messages. You can view your previous conversations but cannot send new messages until they become available.';
+        iconColor = Colors.red;
+        iconData = FontAwesomeIcons.ban;
+        break;
+      case 'day_unavailable':
+        dialogTitle = 'Not Available Today';
+        final availableDays =
+            List<String>.from(availability['availableDays'] ?? []);
+        dialogMessage =
+            'Dr. ${provider['name']} is not available for messages today.\n\nAvailable days: ${availableDays.join(', ')}\n\nYou can view your conversation but cannot send new messages right now.';
+        iconColor = Colors.orange;
+        iconData = FontAwesomeIcons.calendar;
+        break;
+      case 'time_unavailable':
+        dialogTitle = 'Outside Available Hours';
+        final availableHours = availability['availableHours'];
+        dialogMessage =
+            'Dr. ${provider['name']} is currently outside their available hours.\n\nAvailable: ${availableHours['start']} - ${availableHours['end']}\n\nYou can view your conversation but cannot send new messages right now.';
+        iconColor = Colors.blue;
+        iconData = FontAwesomeIcons.clock;
+        break;
+      default:
+        dialogTitle = 'Unavailable';
+        dialogMessage = availability['message'] ??
+            'This doctor is currently unavailable for messages. You can view your conversation but cannot send new messages right now.';
+        iconColor = Colors.grey;
+        iconData = FontAwesomeIcons.exclamation;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(iconData, color: iconColor, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  dialogTitle,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: iconColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                dialogMessage,
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      FontAwesomeIcons.eye,
+                      color: Colors.blue.shade600,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'You can still view your previous messages with this doctor.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // Still allow viewing the conversation in read-only mode
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatScreen(
+                      participant: {
+                        'id': provider['id'],
+                        'name': provider['name'],
+                        'role': provider['role'],
+                        'profilePicture': provider['profilePicture'],
+                      },
+                      currentUserRole: 'patient',
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('View Messages'),
+            ),
+          ],
+        );
+      },
     );
   }
 

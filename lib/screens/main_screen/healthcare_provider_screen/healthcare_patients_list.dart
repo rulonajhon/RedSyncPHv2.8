@@ -171,15 +171,67 @@ class _HealthcarePatientsListState extends State<HealthcarePatientsList>
             ),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.redAccent,
-          labelColor: Colors.redAccent,
-          unselectedLabelColor: Colors.grey.shade600,
-          tabs: const [
-            Tab(icon: Icon(FontAwesomeIcons.users, size: 18), text: 'Patients'),
-            Tab(icon: Icon(FontAwesomeIcons.inbox, size: 18), text: 'Requests'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48.0),
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('data_sharing_requests')
+                .where('providerUid', isEqualTo: currentUid)
+                .where('status', isEqualTo: 'pending')
+                .snapshots(),
+            builder: (context, snapshot) {
+              final requestCount =
+                  snapshot.hasData ? snapshot.data!.docs.length : 0;
+
+              return TabBar(
+                controller: _tabController,
+                indicatorColor: Colors.redAccent,
+                labelColor: Colors.redAccent,
+                unselectedLabelColor: Colors.grey.shade600,
+                tabs: [
+                  const Tab(
+                      icon: Icon(FontAwesomeIcons.users, size: 18),
+                      text: 'Patients'),
+                  Tab(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(FontAwesomeIcons.inbox, size: 18),
+                        const SizedBox(width: 8),
+                        const Text('Requests'),
+                        if (requestCount > 0) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 20,
+                              minHeight: 20,
+                            ),
+                            child: Text(
+                              requestCount > 99
+                                  ? '99+'
+                                  : requestCount.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
       body: Column(

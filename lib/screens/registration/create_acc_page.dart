@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:hemophilia_manager/auth/auth.dart';
 import 'package:hemophilia_manager/services/firestore.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class CreateAccPage extends StatefulWidget {
   const CreateAccPage({super.key});
@@ -23,16 +24,10 @@ class _CreateAccPageState extends State<CreateAccPage> {
   bool _showRoleSelection = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  bool _agreedToTerms = false;
   String? _createdUid;
 
   void _register() async {
     if (!_formKey.currentState!.validate()) return;
-
-    if (!_agreedToTerms) {
-      _showNotice('You must agree to the Terms and Conditions to continue');
-      return;
-    }
 
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -45,6 +40,129 @@ class _CreateAccPageState extends State<CreateAccPage> {
       return;
     }
 
+    // Show terms and conditions popup before proceeding
+    _showTermsForRegistration(email, password, name);
+  }
+
+  void _showTermsForRegistration(String email, String password, String name) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // User must interact with dialog
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          title: const Text(
+            'Terms and Conditions',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.redAccent,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  'RedSync PH Terms of Service',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  '1. Acceptance of Terms',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'By using RedSync PH, you agree to these terms and conditions. This app is designed to help manage hemophilia care and connect patients with healthcare providers.',
+                ),
+                SizedBox(height: 16),
+                Text(
+                  '2. Medical Disclaimer',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'This app is for informational purposes only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of qualified healthcare providers.',
+                ),
+                SizedBox(height: 16),
+                Text(
+                  '3. Data Privacy',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'We respect your privacy and are committed to protecting your personal information. Your health data is encrypted and securely stored. We will never share your personal information without your explicit consent.',
+                ),
+                SizedBox(height: 16),
+                Text(
+                  '4. User Responsibilities',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Users are responsible for providing accurate information and using the app responsibly. Medical professionals must verify their credentials through our verification process.',
+                ),
+                SizedBox(height: 16),
+                Text(
+                  '5. Emergency Situations',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'This app is not intended for emergency situations. In case of a medical emergency, immediately contact local emergency services or go to the nearest hospital.',
+                ),
+                SizedBox(height: 16),
+                Text(
+                  '6. Data Collection',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'We collect minimal necessary data to provide our services including: name, email, medical information (for patients), and professional credentials (for healthcare providers). Location data is used only for clinic locator services.',
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'By continuing, you acknowledge that you have read and agree to these terms and our Privacy Policy.',
+                  style: TextStyle(
+                    fontStyle: FontStyle.italic,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _proceedWithRegistration(email, password, name);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('I Agree'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _proceedWithRegistration(
+      String email, String password, String name) async {
     setState(() => _isLoading = true);
     try {
       final user = await AuthService().createAccount(email, password);
@@ -80,123 +198,6 @@ class _CreateAccPageState extends State<CreateAccPage> {
     );
   }
 
-  void _showTermsAndConditions() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text(
-            'Terms and Conditions',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.redAccent,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'RedSync PH Terms of Service',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  '1. Acceptance of Terms',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'By using RedSync PH, you agree to these terms and conditions. This app is designed to help manage hemophilia care and connect patients with healthcare providers.',
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  '2. Medical Disclaimer',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'This app is for informational purposes only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of qualified healthcare providers.',
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  '3. Data Privacy',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'We respect your privacy and are committed to protecting your personal information. Your health data is encrypted and securely stored. We will never share your personal information without your explicit consent.',
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  '4. User Responsibilities',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Users are responsible for providing accurate information and using the app responsibly. Medical professionals must verify their credentials through our verification process.',
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  '5. Emergency Situations',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'This app is not intended for emergency situations. In case of a medical emergency, immediately contact local emergency services or go to the nearest hospital.',
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  '6. Data Collection',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'We collect minimal necessary data to provide our services including: name, email, medical information (for patients), and professional credentials (for healthcare providers). Location data is used only for clinic locator services.',
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'By continuing, you acknowledge that you have read and agree to these terms and our Privacy Policy.',
-                  style: TextStyle(
-                    fontStyle: FontStyle.italic,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Close',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                setState(() {
-                  _agreedToTerms = true;
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('I Agree'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   void _selectRole(String role) async {
     if (_createdUid == null) return;
     setState(() => _isLoading = true);
@@ -220,6 +221,13 @@ class _CreateAccPageState extends State<CreateAccPage> {
       role,
       extra: extraData,
     );
+
+    // Store authentication data in secure storage
+    final secureStorage = const FlutterSecureStorage();
+    await secureStorage.write(key: 'isLoggedIn', value: 'true');
+    await secureStorage.write(key: 'userRole', value: role);
+    await secureStorage.write(key: 'userUid', value: _createdUid!);
+
     setState(() => _isLoading = false);
 
     // Navigate to appropriate screen and clear navigation stack
@@ -228,7 +236,10 @@ class _CreateAccPageState extends State<CreateAccPage> {
           context, '/healthcare_main', (route) => false);
     } else if (role == 'caregiver') {
       Navigator.pushNamedAndRemoveUntil(
-          context, '/caregiver_main', (route) => false);
+          context,
+          '/user_screen',
+          (route) =>
+              false); // Fixed: caregiver should go to user_screen, not caregiver_main
     } else {
       Navigator.pushNamedAndRemoveUntil(
           context, '/user_screen', (route) => false);
@@ -348,55 +359,6 @@ class _CreateAccPageState extends State<CreateAccPage> {
                             return null;
                           },
                         ),
-                        const SizedBox(height: 24),
-
-                        // Terms and Conditions Checkbox
-                        Row(
-                          children: [
-                            Checkbox(
-                              value: _agreedToTerms,
-                              onChanged: (value) {
-                                setState(() {
-                                  _agreedToTerms = value ?? false;
-                                });
-                              },
-                              activeColor: Colors.redAccent,
-                            ),
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => _showTermsAndConditions(),
-                                child: RichText(
-                                  text: TextSpan(
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[600],
-                                    ),
-                                    children: [
-                                      const TextSpan(text: 'I agree to the '),
-                                      TextSpan(
-                                        text: 'Terms and Conditions',
-                                        style: TextStyle(
-                                          color: Colors.redAccent,
-                                          fontWeight: FontWeight.w600,
-                                          decoration: TextDecoration.underline,
-                                        ),
-                                      ),
-                                      const TextSpan(text: ' and '),
-                                      TextSpan(
-                                        text: 'Privacy Policy',
-                                        style: TextStyle(
-                                          color: Colors.redAccent,
-                                          fontWeight: FontWeight.w600,
-                                          decoration: TextDecoration.underline,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
                         const SizedBox(height: 28),
                         SizedBox(
                           width: double.infinity,
@@ -426,6 +388,16 @@ class _CreateAccPageState extends State<CreateAccPage> {
                                     ),
                                   ),
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'By clicking Register, you will be asked to review and accept our Terms and Conditions.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                            fontStyle: FontStyle.italic,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 24),
                         Row(

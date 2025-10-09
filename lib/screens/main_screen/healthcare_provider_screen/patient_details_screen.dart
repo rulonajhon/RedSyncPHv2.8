@@ -76,8 +76,10 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
               labelColor: Colors.redAccent,
               unselectedLabelColor: Colors.grey.shade600,
               indicatorWeight: 3,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
+              labelStyle:
+                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+              unselectedLabelStyle:
+                  const TextStyle(fontWeight: FontWeight.w500),
               tabs: const [
                 Tab(text: 'Overview'),
                 Tab(text: 'History'),
@@ -104,7 +106,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
 
   Widget _buildPatientHeader() {
     final isCaregiver = widget.patientData['role'] == 'caregiver';
-    
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -160,7 +162,8 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
                         ),
                         const SizedBox(height: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
@@ -222,13 +225,17 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
                 Row(
                   children: [
                     _buildHeaderStat(
-                      'Hemophilia Type',
-                      widget.patientData['hemophiliaType'] ?? 'Hemophilia A',
+                      'Type',
+                      (widget.patientData['hemophiliaType'] ?? 'Hemophilia A')
+                          .replaceAll('Hemophilia ', ''),
                     ),
-                    _buildHeaderStat('Age', _calculateAge(widget.patientData['dob'])),
                     _buildHeaderStat(
-                      'Blood Type',
-                      widget.patientData['bloodType'] ?? 'Not specified',
+                        'Age',
+                        _calculateAge(widget.patientData['dob'])
+                            .replaceAll(' years', '')),
+                    _buildHeaderStat(
+                      'Blood',
+                      widget.patientData['bloodType'] ?? 'N/A',
                     ),
                   ],
                 ),
@@ -284,41 +291,49 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
 
   Widget _buildOverviewTab() {
     final isCaregiver = widget.patientData['role'] == 'caregiver';
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionTitle('Personal Information'),
-          const SizedBox(height: 20),
-          _buildInfoList([
-            _buildInfoRow('Full Name', widget.patientData['name'] ?? 'Not specified'),
-            _buildInfoRow('Email', widget.patientData['email'] ?? 'Not specified'),
-            _buildInfoRow('Gender', widget.patientData['gender'] ?? 'Not specified'),
-            _buildInfoRow('Date of Birth', _formatDate(widget.patientData['dob'])),
+          const SizedBox(height: 24),
+          _buildSimpleInfoSection([
+            _buildSimpleInfoRow(
+                'Full Name', widget.patientData['name'] ?? 'Not specified'),
+            _buildSimpleInfoRow(
+                'Email', widget.patientData['email'] ?? 'Not specified'),
+            _buildSimpleInfoRow(
+                'Gender', widget.patientData['gender'] ?? 'Not specified'),
+            _buildSimpleInfoRow(
+                'Date of Birth', _formatDate(widget.patientData['dob'])),
             if (!isCaregiver) ...[
-              _buildInfoRow('Weight', _formatWeight(widget.patientData['weight'])),
-              _buildInfoRow('Blood Type', widget.patientData['bloodType'] ?? 'Not specified'),
+              _buildSimpleInfoRow(
+                  'Weight', _formatWeight(widget.patientData['weight'])),
+              _buildSimpleInfoRow('Blood Type',
+                  widget.patientData['bloodType'] ?? 'Not specified'),
             ],
             if (isCaregiver) ...[
-              _buildInfoRow('Relationship to Patient', widget.patientData['relationship'] ?? 'Not specified'),
+              _buildSimpleInfoRow('Relationship to Patient',
+                  widget.patientData['relationship'] ?? 'Not specified'),
             ],
           ]),
 
           // Show Medical Information and Emergency Contact only for non-caregivers
           if (!isCaregiver) ...[
-            const SizedBox(height: 40),
+            const SizedBox(height: 48),
             _buildSectionTitle('Medical Information'),
-            const SizedBox(height: 20),
-            _buildInfoList([
-              _buildInfoRow('Hemophilia Type', widget.patientData['hemophiliaType'] ?? 'Hemophilia A'),
-              _buildInfoRow('Inhibitor Status', widget.patientData['inhibitorStatus'] ?? 'Not specified'),
+            const SizedBox(height: 24),
+            _buildSimpleInfoSection([
+              _buildSimpleInfoRow('Hemophilia Type',
+                  widget.patientData['hemophiliaType'] ?? 'Hemophilia A'),
+              _buildSimpleInfoRow('Inhibitor Status',
+                  widget.patientData['inhibitorStatus'] ?? 'Not specified'),
             ]),
-
-            const SizedBox(height: 40),
+            const SizedBox(height: 48),
             _buildSectionTitle('Emergency Contact'),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('emergency_contacts')
@@ -326,17 +341,22 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-                  final contact = snapshot.data!.docs.first.data() as Map<String, dynamic>;
-                  return _buildInfoList([
-                    _buildInfoRow('Emergency Phone', contact['contactPhone'] ?? 'Not specified'),
-                    _buildInfoRow('Contact Name', contact['contactName'] ?? 'Not specified'),
-                    _buildInfoRow('Relationship', contact['relationship'] ?? 'Not specified'),
+                  final contact =
+                      snapshot.data!.docs.first.data() as Map<String, dynamic>;
+                  return _buildSimpleInfoSection([
+                    _buildSimpleInfoRow('Emergency Phone',
+                        contact['contactPhone'] ?? 'Not specified'),
+                    _buildSimpleInfoRow('Contact Name',
+                        contact['contactName'] ?? 'Not specified'),
+                    _buildSimpleInfoRow('Relationship',
+                        contact['relationship'] ?? 'Not specified'),
                   ]);
                 }
                 return _buildEmptyState(
                   icon: FontAwesomeIcons.phoneSlash,
                   title: 'No emergency contact',
-                  subtitle: 'Patient hasn\'t provided emergency contact information',
+                  subtitle:
+                      'Patient hasn\'t provided emergency contact information',
                 );
               },
             ),
@@ -344,9 +364,9 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
 
           // Show Patient Information only for caregivers
           if (isCaregiver) ...[
-            const SizedBox(height: 40),
+            const SizedBox(height: 48),
             _buildSectionTitle('Patient Information'),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             _buildCaregiverPatientInfo(),
           ],
         ],
@@ -447,57 +467,39 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
     );
   }
 
-  Widget _buildInfoList(List<Widget> items) {
+  Widget _buildSimpleInfoSection(List<Widget> children) {
     return Column(
-      children: items.map((item) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: item,
-      )).toList(),
+      children: children,
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade50,
-            offset: const Offset(0, 2),
-            blurRadius: 8,
-            spreadRadius: 0,
-          ),
-        ],
-      ),
-      child: Row(
+  Widget _buildSimpleInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
-              ),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey,
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            flex: 3,
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.right,
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              color: Colors.black87,
             ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 1,
+            color: Colors.grey.shade200,
           ),
         ],
       ),
@@ -942,99 +944,130 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildDetailSection('Episode Information', [
-                          _buildDetailRow(
-                            'Body Region',
-                            log['bodyRegion'] ?? 'Not specified',
+                        // Episode Information
+                        const Text(
+                          'Episode Information',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
                           ),
-                          _buildDetailRow(
-                            'Specific Region',
-                            log['specificRegion']?.isNotEmpty == true
-                                ? log['specificRegion']
-                                : 'Not specified',
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          _buildDetailRow(
-                            'Severity',
-                            log['severity'] ?? 'Not specified',
+                          child: Column(
+                            children: [
+                              _buildDetailRow(
+                                'Body Region',
+                                log['bodyRegion'] ?? 'Not specified',
+                              ),
+                              _buildDetailRow(
+                                'Specific Region',
+                                log['specificRegion']?.isNotEmpty == true
+                                    ? log['specificRegion']
+                                    : 'Not specified',
+                              ),
+                              _buildDetailRow(
+                                'Severity',
+                                log['severity'] ?? 'Not specified',
+                              ),
+                              _buildDetailRow(
+                                'Date',
+                                log['date'] ?? 'Not specified',
+                              ),
+                              _buildDetailRow(
+                                'Time',
+                                log['time'] ?? 'Not specified',
+                              ),
+                            ],
                           ),
-                          _buildDetailRow(
-                            'Date',
-                            log['date'] ?? 'Not specified',
-                          ),
-                          _buildDetailRow(
-                            'Time',
-                            log['time'] ?? 'Not specified',
-                          ),
-                        ]),
+                        ),
 
                         const SizedBox(height: 24),
 
                         if (log['notes']?.isNotEmpty == true) ...[
-                          _buildDetailSection('Additional Notes', [
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.grey.shade200),
-                              ),
-                              child: Text(
-                                log['notes'],
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.black87,
-                                  height: 1.5,
-                                ),
+                          const Text(
+                            'Additional Notes',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              log['notes'],
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.black87,
+                                height: 1.5,
                               ),
                             ),
-                          ]),
+                          ),
                           const SizedBox(height: 24),
                         ],
 
-                        _buildDetailSection('Patient Information', [
-                          _buildDetailRow(
-                            'Patient Name',
-                            widget.patientData['name'] ?? 'Unknown',
+                        // Patient Information
+                        const Text(
+                          'Patient Information',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
                           ),
-                          _buildDetailRow(
-                            'Hemophilia Type',
-                            widget.patientData['hemophiliaType'] ??
-                                'Not specified',
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          _buildDetailRow(
-                            'Severity Level',
-                            widget.patientData['severity'] ?? 'Not specified',
+                          child: Column(
+                            children: [
+                              _buildDetailRow(
+                                'Patient Name',
+                                widget.patientData['name'] ?? 'Unknown',
+                              ),
+                              _buildDetailRow(
+                                'Hemophilia Type',
+                                widget.patientData['hemophiliaType'] ??
+                                    'Not specified',
+                              ),
+                              _buildDetailRow(
+                                'Severity Level',
+                                widget.patientData['severity'] ??
+                                    'Not specified',
+                              ),
+                            ],
                           ),
-                        ]),
+                        ),
 
                         const SizedBox(height: 24),
-
-                        if (log['createdAt'] != null) ...[
-                          _buildDetailSection('Log Information', [
-                            _buildDetailRow(
-                              'Logged At',
-                              _formatTimestamp(log['createdAt']),
-                            ),
-                            _buildDetailRow('Log ID', log['id'] ?? 'Unknown'),
-                          ]),
-                          const SizedBox(height: 24),
-                        ],
 
                         // Severity indicator
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             color: _getSeverityColor(
                               log['severity'] ?? 'Mild',
                             ).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _getSeverityColor(
-                                log['severity'] ?? 'Mild',
-                              ).withOpacity(0.3),
-                            ),
                           ),
                           child: Row(
                             children: [
@@ -1060,6 +1093,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
                                         fontSize: 16,
                                       ),
                                     ),
+                                    const SizedBox(height: 4),
                                     Text(
                                       _getSeverityDescription(
                                         log['severity'] ?? 'Mild',
@@ -1249,156 +1283,84 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
 
   Widget _buildCaregiverPatientInfo() {
     final patientData = widget.patientData;
-    
+
     // Get patient information from caregiver data
     final patientName = patientData['patientName'] ?? 'Not specified';
     final patientAge = patientData['patientAge'] ?? 'Not specified';
     final patientGender = patientData['patientGender'] ?? 'Not specified';
-    final patientHemophiliaType = patientData['patientHemophiliaType'] ?? 'Not specified';
+    final patientHemophiliaType =
+        patientData['patientHemophiliaType'] ?? 'Not specified';
     final patientWeight = patientData['patientWeight'] ?? 'Not specified';
     final patientBloodType = patientData['patientBloodType'] ?? 'Not specified';
     final patientDob = _formatDate(patientData['patientDob']);
 
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.blue.shade50,
-            Colors.indigo.shade50,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.child_care,
+              color: Colors.blue.shade600,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Patient Under Care',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
           ],
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.blue.shade100, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.shade100.withOpacity(0.3),
-            offset: const Offset(0, 4),
-            blurRadius: 12,
-            spreadRadius: 0,
+        const SizedBox(height: 24),
+        _buildSimpleInfoSection([
+          _buildSimpleInfoRow('Patient Name', patientName),
+          _buildSimpleInfoRow('Age', patientAge),
+          _buildSimpleInfoRow('Gender', patientGender),
+          _buildSimpleInfoRow('Date of Birth', patientDob),
+          _buildSimpleInfoRow('Hemophilia Type', patientHemophiliaType),
+          _buildSimpleInfoRow(
+              'Weight',
+              patientWeight == 'Not specified'
+                  ? patientWeight
+                  : '$patientWeight kg'),
+          _buildSimpleInfoRow('Blood Type', patientBloodType),
+        ]),
+        const SizedBox(height: 20),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.shade200),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade600,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.shade600.withOpacity(0.3),
-                      offset: const Offset(0, 2),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.child_care,
-                  color: Colors.white,
-                  size: 22,
-                ),
+              Icon(
+                Icons.info_outline,
+                color: Colors.blue.shade600,
+                size: 18,
               ),
-              const SizedBox(width: 16),
-              const Text(
-                'Patient Under Care',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                  letterSpacing: -0.5,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'This information is provided by the caregiver and may need verification.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.blue.shade700,
+                    fontWeight: FontWeight.w500,
+                    height: 1.3,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          _buildInfoList([
-            _buildPatientInfoRow('Patient Name', patientName),
-            _buildPatientInfoRow('Age', patientAge),
-            _buildPatientInfoRow('Gender', patientGender),
-            _buildPatientInfoRow('Date of Birth', patientDob),
-            _buildPatientInfoRow('Hemophilia Type', patientHemophiliaType),
-            _buildPatientInfoRow('Weight', patientWeight == 'Not specified' ? patientWeight : '$patientWeight kg'),
-            _buildPatientInfoRow('Blood Type', patientBloodType),
-          ]),
-          const SizedBox(height: 20),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade100,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: Colors.blue.shade700,
-                  size: 18,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'This information is provided by the caregiver and may need verification.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.blue.shade700,
-                      fontWeight: FontWeight.w500,
-                      height: 1.3,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPatientInfoRow(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade100),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.blue.shade700,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            flex: 3,
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.black87,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.right,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
