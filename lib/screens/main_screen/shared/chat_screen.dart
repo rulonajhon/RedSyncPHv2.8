@@ -109,10 +109,12 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _checkDoctorAvailability() async {
-    // Only check availability if patient is chatting with a doctor
-    if (widget.currentUserRole == 'patient' &&
+    // Only check availability if patient/caregiver is chatting with a doctor
+    if ((widget.currentUserRole == 'patient' ||
+            widget.currentUserRole == 'caregiver') &&
         (widget.participant['role'] == 'doctor' ||
-            widget.participant['role'] == 'healthcare_provider')) {
+            widget.participant['role'] == 'healthcare_provider' ||
+            widget.participant['role'] == 'medical')) {
       try {
         final availability = await _availabilityService.checkDoctorAvailability(
             widget.participant['id'] ?? widget.participant['uid'] ?? '');
@@ -128,10 +130,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty || _isSending) return;
 
-    // Check if patient is trying to message a doctor
-    if (widget.currentUserRole == 'patient' &&
+    // Check if patient/caregiver is trying to message a doctor
+    if ((widget.currentUserRole == 'patient' ||
+            widget.currentUserRole == 'caregiver') &&
         (widget.participant['role'] == 'doctor' ||
-            widget.participant['role'] == 'healthcare_provider')) {
+            widget.participant['role'] == 'healthcare_provider' ||
+            widget.participant['role'] == 'medical')) {
       final availability = await _availabilityService.checkDoctorAvailability(
           widget.participant['id'] ?? widget.participant['uid'] ?? '');
 
@@ -181,6 +185,22 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     setState(() => _isSending = false);
+  }
+
+  /// Helper method to determine if availability restrictions should apply
+  bool _shouldCheckAvailability() {
+    return (widget.currentUserRole == 'patient' ||
+            widget.currentUserRole == 'caregiver') &&
+        (widget.participant['role'] == 'doctor' ||
+            widget.participant['role'] == 'healthcare_provider' ||
+            widget.participant['role'] == 'medical');
+  }
+
+  /// Helper method to determine if the current user is a healthcare provider
+  bool _isCurrentUserHealthcareProvider() {
+    return widget.currentUserRole == 'doctor' ||
+        widget.currentUserRole == 'healthcare_provider' ||
+        widget.currentUserRole == 'medical';
   }
 
   void _scrollToBottom() {
@@ -234,35 +254,57 @@ class _ChatScreenState extends State<ChatScreen> {
         iconData = FontAwesomeIcons.exclamation;
     }
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(iconData, color: iconColor, size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  dialogTitle,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: iconColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Title with icon
+              Row(
+                children: [
+                  Icon(iconData, color: iconColor, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      dialogTitle,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: iconColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Message
               Text(
                 dialogMessage,
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 16),
+              // Info tip
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -290,20 +332,33 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Understood',
-                style: TextStyle(
-                  color: Colors.redAccent,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(height: 24),
+              // Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Understood',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+              // Add bottom padding for safe area
+              SizedBox(height: MediaQuery.of(context).padding.bottom),
+            ],
+          ),
         );
       },
     );
@@ -381,10 +436,8 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
         actions: [
-          // Doctor Availability Status Indicator
-          if (widget.currentUserRole == 'patient' &&
-              (widget.participant['role'] == 'doctor' ||
-                  widget.participant['role'] == 'healthcare_provider'))
+          // Doctor Availability Status Indicator - Only for patients/caregivers viewing doctors
+          if (_shouldCheckAvailability())
             GestureDetector(
               onTap: () {
                 if (_doctorAvailability != null &&
@@ -540,8 +593,44 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
             )
+          // Healthcare providers get a clean interface with no availability restrictions
+          else if (_isCurrentUserHealthcareProvider())
+            Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.green.shade200,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.green.shade600,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Active',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          // Default case for other roles (patient-to-patient, etc.)
           else
-            // Non-doctor participants get a simple status indicator
             Container(
               margin: const EdgeInsets.only(right: 16),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -777,20 +866,14 @@ class _ChatScreenState extends State<ChatScreen> {
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: widget.currentUserRole == 'patient' &&
-                                  (widget.participant['role'] == 'doctor' ||
-                                      widget.participant['role'] ==
-                                          'healthcare_provider') &&
+                          color: _shouldCheckAvailability() &&
                                   _doctorAvailability != null &&
                                   !_doctorAvailability!['isAvailable']
                               ? Colors.grey.shade100 // Disabled appearance
                               : Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: widget.currentUserRole == 'patient' &&
-                                    (widget.participant['role'] == 'doctor' ||
-                                        widget.participant['role'] ==
-                                            'healthcare_provider') &&
+                            color: _shouldCheckAvailability() &&
                                     _doctorAvailability != null &&
                                     !_doctorAvailability!['isAvailable']
                                 ? Colors.grey.shade300 // Disabled border
@@ -800,17 +883,11 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                         child: TextField(
                           controller: _messageController,
-                          enabled: !(widget.currentUserRole == 'patient' &&
-                              (widget.participant['role'] == 'doctor' ||
-                                  widget.participant['role'] ==
-                                      'healthcare_provider') &&
+                          enabled: !(_shouldCheckAvailability() &&
                               _doctorAvailability != null &&
                               !_doctorAvailability!['isAvailable']),
                           decoration: InputDecoration(
-                            hintText: widget.currentUserRole == 'patient' &&
-                                    (widget.participant['role'] == 'doctor' ||
-                                        widget.participant['role'] ==
-                                            'healthcare_provider') &&
+                            hintText: _shouldCheckAvailability() &&
                                     _doctorAvailability != null &&
                                     !_doctorAvailability!['isAvailable']
                                 ? (_doctorAvailability!['reason'] ==
@@ -819,10 +896,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                     : 'Doctor is currently unavailable...')
                                 : 'Type a message...',
                             hintStyle: TextStyle(
-                              color: widget.currentUserRole == 'patient' &&
-                                      (widget.participant['role'] == 'doctor' ||
-                                          widget.participant['role'] ==
-                                              'healthcare_provider') &&
+                              color: _shouldCheckAvailability() &&
                                       _doctorAvailability != null &&
                                       !_doctorAvailability!['isAvailable']
                                   ? Colors.red.shade400
@@ -849,10 +923,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       decoration: BoxDecoration(
                         color: _isSending
                             ? Colors.grey.shade300
-                            : (widget.currentUserRole == 'patient' &&
-                                    (widget.participant['role'] == 'doctor' ||
-                                        widget.participant['role'] ==
-                                            'healthcare_provider') &&
+                            : (_shouldCheckAvailability() &&
                                     _doctorAvailability != null &&
                                     !_doctorAvailability!['isAvailable'])
                                 ? Colors.grey
@@ -865,10 +936,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       child: IconButton(
                         onPressed: _isSending
                             ? null
-                            : (widget.currentUserRole == 'patient' &&
-                                    (widget.participant['role'] == 'doctor' ||
-                                        widget.participant['role'] ==
-                                            'healthcare_provider') &&
+                            : (_shouldCheckAvailability() &&
                                     _doctorAvailability != null &&
                                     !_doctorAvailability!['isAvailable'])
                                 ? null // Disable button when doctor unavailable
@@ -884,11 +952,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               )
                             : Icon(
                                 FontAwesomeIcons.paperPlane,
-                                color: (widget.currentUserRole == 'patient' &&
-                                        (widget.participant['role'] ==
-                                                'doctor' ||
-                                            widget.participant['role'] ==
-                                                'healthcare_provider') &&
+                                color: (_shouldCheckAvailability() &&
                                         _doctorAvailability != null &&
                                         !_doctorAvailability!['isAvailable'])
                                     ? Colors.grey
