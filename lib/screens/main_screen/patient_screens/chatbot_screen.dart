@@ -5,6 +5,8 @@ import 'package:hemophilia_manager/models/online/chat_message.dart';
 import 'package:hemophilia_manager/services/openai_service.dart';
 import 'package:hemophilia_manager/widgets/offline_indicator.dart';
 import 'package:hemophilia_manager/utils/connectivity_helper.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hemophilia_manager/services/firestore.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -21,14 +23,84 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final FirestoreService _firestoreService = FirestoreService();
   bool _isLoading = false;
+  String _userName = '';
+  bool _isGuest = false;
 
   @override
   void initState() {
     super.initState();
+    _loadUserData();
     if (!_hasInitialized) {
       _addWelcomeMessage();
       _hasInitialized = true;
+    }
+  }
+
+  // Load user data for personalization
+  Future<void> _loadUserData() async {
+    try {
+      // Check if user is a guest
+      final guestStatus = await _secureStorage.read(key: 'isGuest');
+      _isGuest = guestStatus == 'true';
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && !_isGuest) {
+        final userData = await _firestoreService.getUser(user.uid);
+        if (userData != null) {
+          setState(() {
+            // Extract only first name from full name
+            final fullName = userData['name'] ?? 'User';
+            _userName = fullName.split(' ').first;
+          });
+          // Refresh welcome message with personalized greeting
+          _refreshWelcomeMessage();
+        } else {
+          setState(() {
+            _userName = 'User';
+          });
+          _refreshWelcomeMessage();
+        }
+      } else {
+        setState(() {
+          _userName = _isGuest ? 'Guest' : 'User';
+        });
+        _refreshWelcomeMessage();
+      }
+    } catch (e) {
+      print('Error loading user data for chatbot: $e');
+      setState(() {
+        _userName = 'User';
+        _isGuest = false;
+      });
+    }
+  }
+
+  // Refresh welcome message with updated user information
+  void _refreshWelcomeMessage() {
+    if (_sessionMessages.isNotEmpty && !_sessionMessages[0].isUser) {
+      // Update the first message (welcome message) with personalized greeting
+      setState(() {
+        final personalizedGreeting = _userName.isNotEmpty 
+            ? (_isGuest 
+                ? "🩸 Hello there! Kumusta! I'm HemoAssistant, your AI companion for hemophilia care."
+                : "🩸 Hello **$_userName**! Kumusta! I'm HemoAssistant, your personal AI companion for hemophilia care.")
+            : "🩸 Hello! Kumusta! I'm HemoAssistant, your AI companion for hemophilia care.";
+        
+        _sessionMessages[0] = ChatMessage(
+          text: "$personalizedGreeting\n\n"
+                "I can help you with hemophilia questions in **English**, **Tagalog**, or **Bisaya**.\n\n"
+                "🏥 **Topics I can assist with:**\n"
+                "• Hemophilia types and symptoms\n"
+                "• Treatment and medication guidance\n"
+                "• Emergency care information\n"
+                "• Davao City healthcare resources\n\n"
+                "${_userName.isNotEmpty && !_isGuest ? "How can I help you today, $_userName?" : "How can I help you today?"} Unsaon ta ka tabangan?\n\n"
+                "*I provide informational support only and cannot replace professional medical advice.*",
+          isUser: false,
+        );
+      });
     }
   }
 
@@ -111,7 +183,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                         ),
                         SizedBox(width: 8),
                         Text(
-                          'AI Assistant Features:',
+                          'Multilingual AI Assistant Features:',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             color: Colors.redAccent,
@@ -120,6 +192,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       ],
                     ),
                     SizedBox(height: 12),
+                    Text('• Trilingual support: English, Tagalog, Bisaya',
+                        style: TextStyle(fontSize: 14, color: Colors.black87)),
+                    SizedBox(height: 4),
                     Text('• Personalized hemophilia guidance',
                         style: TextStyle(fontSize: 14, color: Colors.black87)),
                     SizedBox(height: 4),
@@ -127,6 +202,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                         style: TextStyle(fontSize: 14, color: Colors.black87)),
                     SizedBox(height: 4),
                     Text('• Emergency care information',
+                        style: TextStyle(fontSize: 14, color: Colors.black87)),
+                    SizedBox(height: 4),
+                    Text('• Davao City healthcare resources',
                         style: TextStyle(fontSize: 14, color: Colors.black87)),
                     SizedBox(height: 4),
                     Text('• Context-aware conversations',
@@ -207,17 +285,24 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   void _addWelcomeMessage() {
+    final personalizedGreeting = _userName.isNotEmpty 
+        ? (_isGuest 
+            ? "🩸 Hello there! Kumusta! I'm HemoAssistant, your AI companion for hemophilia care."
+            : "🩸 Hello **$_userName**! Kumusta! I'm HemoAssistant, your personal AI companion for hemophilia care.")
+        : "🩸 Hello! Kumusta! I'm HemoAssistant, your AI companion for hemophilia care.";
+    
     _sessionMessages.add(
       ChatMessage(
         text:
-            "Hello! I'm HemoAssistant, your AI companion for hemophilia care and support. I'm here to help you with:\n\n"
-            "• Understanding hemophilia types and symptoms\n"
+            "$personalizedGreeting\n\n"
+            "I can help you with hemophilia questions in **English**, **Tagalog**, or **Bisaya**.\n\n"
+            "🏥 **Topics I can assist with:**\n"
+            "• Hemophilia types and symptoms\n"
             "• Treatment and medication guidance\n"
-            "• Lifestyle and activity recommendations\n"
             "• Emergency care information\n"
-            "• Emotional support and resources\n\n"
-            "How can I assist you today?\n\n"
-            "*Please remember that I provide informational support only and cannot replace professional medical advice.*",
+            "• Davao City healthcare resources\n\n"
+            "${_userName.isNotEmpty && !_isGuest ? "How can I help you today, $_userName?" : "How can I help you today?"} Unsaon ta ka tabangan?\n\n"
+            "*I provide informational support only and cannot replace professional medical advice.*",
         isUser: false,
       ),
     );
@@ -291,6 +376,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       final response = await OpenAIService.generateResponse(
         userMessage,
         chatHistory,
+        userName: _userName,
+        isGuest: _isGuest,
       );
 
       if (response.isNotEmpty) {
@@ -331,28 +418,26 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     // Convert query to lowercase for better matching
     final lowerQuery = query.toLowerCase().trim();
 
-    // Allow simple greetings and polite interactions
+    // Allow simple greetings and polite interactions in multiple languages
     final greetings = [
-      'hello',
-      'hi',
-      'hey',
-      'good morning',
-      'good afternoon',
-      'good evening',
-      'how are you',
-      'how do you do',
-      'nice to meet you',
-      'greetings',
-      'thank you',
-      'thanks',
-      'please',
-      'excuse me',
-      'sorry',
-      'goodbye',
-      'bye',
-      'see you',
-      'have a good day',
-      'take care',
+      // English greetings
+      'hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening',
+      'how are you', 'how do you do', 'nice to meet you', 'greetings',
+      'thank you', 'thanks', 'please', 'excuse me', 'sorry',
+      'goodbye', 'bye', 'see you', 'have a good day', 'take care',
+
+      // Tagalog greetings
+      'kumusta', 'kumusta ka', 'magandang umaga', 'magandang hapon',
+      'magandang gabi', 'salamat', 'maraming salamat', 'pakisuyo',
+      'pasensya na', 'sorry', 'paalam', 'ingat ka', 'magandang araw',
+      'mabuti', 'ayos lang', 'opo', 'hindi', 'oo', 'sige',
+
+      // Bisaya greetings
+      'kumusta', 'kumusta ka', 'maayong buntag', 'maayong hapon',
+      'maayong gabii', 'salamat', 'daghan salamat', 'palihog',
+      'pasaylo', 'goodbye', 'amping', 'maayong adlaw',
+      'maayo man', 'okay ra', 'oo', 'dili', 'sige', 'agi',
+      'unsa', 'asa', 'kanus-a', 'ngano', 'kinsa', 'pila',
     ];
 
     // Check for simple greetings - allow these through
@@ -425,6 +510,20 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           'signs',
           'treatment',
           'treatments',
+          'medication',
+          'medicine',
+          'therapy',
+          'missed',
+          'skipped',
+          'forgot',
+          'forgotten',
+          'schedule',
+          'dose',
+          'dosage',
+          'injection',
+          'infusion',
+          'factor',
+          'replacement',
           'help',
           'care',
           'manage',
@@ -529,45 +628,105 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   bool _containsHemophiliaKeywords(String text) {
     final lowerText = text.toLowerCase();
 
-    // Define comprehensive hemophilia-related keywords
+    // Define comprehensive hemophilia-related keywords in multiple languages
     final hemophiliaKeywords = [
-      // Direct hemophilia terms
+      // English - Direct hemophilia terms
       'hemophilia', 'haemophilia', 'hemophiliac', 'haemophiliac',
 
-      // Types of hemophilia
+      // English - Types of hemophilia
       'hemophilia a', 'hemophilia b', 'hemophilia c',
       'factor viii', 'factor ix', 'factor xi',
       'von willebrand', 'vwd', 'factor deficiency',
 
-      // Symptoms and conditions
+      // English - Symptoms and conditions
       'bleeding', 'bruising', 'clotting', 'coagulation', 'hemorrhage',
       'internal bleeding', 'joint bleeding', 'muscle bleeding', 'epistaxis',
       'hematoma', 'petechiae', 'ecchymosis', 'prolonged bleeding',
       'excessive bleeding', 'abnormal bleeding', 'gum bleeding',
       'nose bleeding', 'nosebleed',
 
-      // Treatments and medications
-      'factor concentrate', 'factor replacement', 'desmopressin', 'ddavp',
-      'antifibrinolytic', 'tranexamic acid', 'aminocaproic acid',
+      // English - Treatments and medications  
+      'factor concentrate', 'factor replacement', 'factor therapy', 'factor treatment',
+      'factor infusion', 'factor injection', 'missed factor', 'skipped factor',
+      'forgot factor', 'factor dose', 'factor dosage', 'factor schedule',
+      'prophylactic factor', 'prophylaxis factor', 'replacement therapy',
+      'desmopressin', 'ddavp', 'antifibrinolytic', 'tranexamic acid', 'aminocaproic acid',
       'plasma', 'cryoprecipitate', 'fresh frozen plasma', 'ffp',
-      'prophylaxis', 'on-demand treatment', 'infusion',
+      'prophylaxis', 'on-demand treatment', 'infusion', 'injection therapy',
 
-      // Medical terms
+      // English - Medical terms
       'coagulation factor', 'blood clotting', 'platelet', 'hemostasis',
       'bleeding disorder', 'inherited bleeding', 'genetic bleeding',
       'bleeding time', 'pt', 'ptt', 'aptt', 'inr',
 
-      // Body parts commonly affected
+      // English - Body parts commonly affected
       'joint', 'knee', 'elbow', 'ankle', 'shoulder', 'hip',
       'muscle', 'brain bleeding', 'intracranial', 'gum', 'gums',
 
-      // Emergency situations
+      // English - Emergency situations
       'head injury', 'trauma', 'surgery', 'dental', 'tooth extraction',
       'emergency', 'first aid', 'urgent care',
 
-      // Related conditions
+      // English - Related conditions
       'bleeding disorder', 'platelet disorder', 'thrombocytopenia',
       'immune thrombocytopenic purpura', 'itp',
+
+      // TAGALOG/FILIPINO TERMS
+      // Basic terms
+      'dugo', 'pagdurugo', 'dumugo', 'pagkakadugo',
+      'sakit sa dugo', 'problema sa dugo', 'kakulangan ng dugo',
+
+      // Symptoms in Tagalog
+      'pasa', 'pagkapasa', 'sugat', 'hirap tumigil ang dugo',
+      'matagal na pagdurugo', 'sobrang pagdurugo',
+      'dugo sa ihi', 'dugo sa dumi', 'dumudugo ang gilagid',
+      'dumudugo ang ilong', 'pamamaga ng kasukasuan',
+
+      // Body parts in Tagalog
+      'kasukasuan', 'tuhod', 'siko', 'sakong', 'balikat',
+      'kalamnan', 'utak', 'gilagid', 'ngipin',
+
+      // Treatments in Tagalog
+      'gamot', 'tambal', 'injection', 'iniksyon',
+      'factor therapy', 'factor replacement', 'palit ng factor',
+      'nakalimutan ang factor', 'nakaligtaan ang factor', 'hindi natuloy ang factor',
+      'schedule ng factor', 'factor dose', 'dosis ng factor',
+      'transfusion', 'ospital', 'doktor', 'manggagamot',
+      'pang-emergency', 'first aid', 'pang-unang lunas',
+
+      // Medical terms in Tagalog
+      'mana', 'inherited', 'minana', 'genetic',
+      'uri ng sakit', 'klase ng sakit', 'symptoms', 'sintomas',
+      'treatment', 'paggamot', 'prevention', 'pag-iwas',
+
+      // BISAYA/CEBUANO TERMS
+      // Basic terms
+      'dugo', 'pagdugo', 'dumugo', 'sakit sa dugo',
+      'problema sa dugo', 'kulang ang dugo', 'dili maayo ang dugo',
+
+      // Symptoms in Bisaya
+      'pasa', 'bugha', 'samad', 'lisod mohunong ang dugo',
+      'taas nga pagdugo', 'sobra nga pagdugo', 'dugoon',
+      'dugo sa ihi', 'dugo sa tai', 'dumudugo ang ngipon',
+      'dumudugo ang ilong', 'nahubag ang kasukasuan',
+
+      // Body parts in Bisaya
+      'kasukasuan', 'tuhod', 'siko', 'tikod', 'abaga',
+      'kaunuran', 'utok', 'ngipon', 'gums',
+
+      // Treatments in Bisaya
+      'tambal', 'medisina', 'injection', 'turukan',
+      'factor therapy', 'factor replacement', 'ilis sa factor',
+      'nakalimot sa factor', 'nakalimtan ang factor', 'wala natuloy ang factor',
+      'schedule sa factor', 'factor dose', 'dosis sa factor',
+      'transfusion', 'ospital', 'doktor', 'mananabbal',
+      'emergency', 'first aid', 'unang tabang',
+
+      // Medical terms in Bisaya
+      'gikan sa ginikanan', 'inherited', 'genetic',
+      'matang sakit', 'klasing sakit', 'mga sintomas',
+      'pagtambal', 'prevention', 'paglikay',
+      'maayo nga kaayohan', 'health condition',
     ];
 
     // Check if text contains any hemophilia keywords
@@ -585,6 +744,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       }
     });
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -622,9 +783,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   ),
                 ),
                 Text(
-                  'AI Medical Assistant',
+                  'English • Tagalog • Bisaya',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     color: Colors.grey.shade600,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1002,6 +1163,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               const SizedBox(height: 12),
             ],
 
+
+
             // Input field and send button
             Row(
               children: [
@@ -1016,7 +1179,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       controller: _textController,
                       maxLines: null,
                       decoration: InputDecoration(
-                        hintText: 'Ask me about hemophilia care...',
+                        hintText: 'English, Tagalog, o Bisaya... tanong lang!',
                         hintStyle: TextStyle(color: Colors.grey.shade500),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(

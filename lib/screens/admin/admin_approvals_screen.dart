@@ -187,6 +187,16 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen>
     final yearsOfExperience = userData['yearsOfExperience'] ?? 'Not provided';
     final verificationExpiry = userData['verificationExpiry'];
 
+    // Extract and format birthday
+    final dobString = userData['dob'] as String?;
+    String formattedBirthday = 'Not provided';
+    if (dobString != null) {
+      final dob = DateTime.tryParse(dobString);
+      if (dob != null) {
+        formattedBirthday = '${dob.day}/${dob.month}/${dob.year}';
+      }
+    }
+
     DateTime? expiryDate;
     int? daysLeft;
     if (verificationExpiry != null) {
@@ -308,6 +318,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen>
                 const SizedBox(height: 20),
                 _buildInfoGrid([
                   {'label': 'License', 'value': licenseNumber},
+                  {'label': 'Birthday', 'value': formattedBirthday},
                   {'label': 'Hospital', 'value': hospitalAffiliation},
                   {'label': 'Experience', 'value': '$yearsOfExperience years'},
                 ]),
@@ -1040,6 +1051,19 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen>
                               'label': 'License Number',
                               'value':
                                   userData['licenseNumber'] ?? 'Not provided'
+                            },
+                            {
+                              'label': 'Date of Birth',
+                              'value': (() {
+                                final dobString = userData['dob'] as String?;
+                                if (dobString != null) {
+                                  final dob = DateTime.tryParse(dobString);
+                                  if (dob != null) {
+                                    return '${dob.day}/${dob.month}/${dob.year}';
+                                  }
+                                }
+                                return 'Not provided';
+                              })()
                             },
                             {
                               'label': 'Hospital Affiliation',

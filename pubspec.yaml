@@ -45,6 +45,8 @@ dependencies:
   share_plus: ^10.1.1
   connectivity_plus: ^6.1.5
   flutter_polyline_points: ^2.1.0
+  path: ^1.9.0
+  pdfx: ^2.7.0
 
 dev_dependencies:
   flutter_test:
@@ -61,6 +63,7 @@ flutter:
   assets:
     - assets/images/
     - assets/lottie/
+    - assets/pdf/
     - .env
 
   fonts:

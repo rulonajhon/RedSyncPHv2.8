@@ -98,6 +98,27 @@ class _MedicalInfoSettingsState extends State<MedicalInfoSettings> {
   }
 
   Future<void> _saveProfile() async {
+    // Validate mandatory fields for medical professionals
+    if (licenseNumber.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('License number is required for medical professionals'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (dob == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Date of birth is required for medical professionals'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     final user = AuthService().currentUser;
     if (user != null) {
@@ -116,12 +137,31 @@ class _MedicalInfoSettingsState extends State<MedicalInfoSettings> {
         },
       );
       if (!mounted) return;
+
+      // Check if this is registration completion (first time setting required fields)
+      bool isRegistrationComplete =
+          licenseNumber.trim().isNotEmpty && dob != null;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Profile updated!'),
+          content: Text(
+              'Profile updated successfully! Your account is pending verification.'),
           backgroundColor: Colors.green,
         ),
       );
+
+      // If completing registration, navigate to healthcare dashboard after a brief delay
+      if (isRegistrationComplete) {
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/healthcare_main',
+              (route) => false,
+            );
+          }
+        });
+      }
     }
     setState(() => _isLoading = false);
   }
@@ -144,6 +184,57 @@ class _MedicalInfoSettingsState extends State<MedicalInfoSettings> {
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
+                    // Registration completion notice for new users
+                    if (licenseNumber.isEmpty || dob == null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        margin: const EdgeInsets.only(bottom: 24),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.info_outline,
+                                    color: Colors.blue,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Text(
+                                  'Complete Your Registration',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Please provide your license number and date of birth to complete your medical professional account registration. These details are required for verification.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     // Profile Header Section
                     Container(
                       width: double.infinity,
@@ -253,9 +344,9 @@ class _MedicalInfoSettingsState extends State<MedicalInfoSettings> {
 
                     _buildInfoTile(
                       icon: Icons.cake,
-                      title: 'Date of Birth',
+                      title: 'Date of Birth *',
                       value: dob == null
-                          ? 'Not set'
+                          ? 'Required - Tap to set'
                           : '${dob!.day}/${dob!.month}/${dob!.year}',
                       onTap: () => _selectDateOfBirth(),
                     ),
@@ -279,8 +370,8 @@ class _MedicalInfoSettingsState extends State<MedicalInfoSettings> {
                     _buildTextFieldTile(
                       controller: _licenseController,
                       icon: Icons.badge,
-                      title: 'License Number',
-                      hintText: 'Enter license number',
+                      title: 'License Number *',
+                      hintText: 'Enter license number (Required)',
                       onChanged: (val) => setState(() => licenseNumber = val),
                     ),
 

@@ -866,4 +866,106 @@ class EducationalDataService {
         return Colors.blue;
     }
   }
+
+  // Get PDF and image infographic resources
+  static List<Map<String, dynamic>> getInfographicResources() {
+    return [
+      {
+        'id': 'hemophilia-disease-state',
+        'title': 'Hemophilia A Disease State Infographic',
+        'description':
+            'Comprehensive overview of Hemophilia A pathophysiology, symptoms, and treatment approaches',
+        'type': 'pdf',
+        'category': 'Understanding Hemophilia',
+        'path':
+            'assets/pdf/Hemophilia-A-disease-state-infographic-March-2022-N-HEM-US-420018-6.pdf',
+        'thumbnailColor': Colors.red.shade100,
+        'icon': 'file-medical',
+      },
+      {
+        'id': 'ltp-infographic',
+        'title': 'Long-Term Prophylaxis (LTP) Guide',
+        'description':
+            'Healthcare professional guide to long-term prophylaxis treatment strategies',
+        'type': 'pdf',
+        'category': 'Treatment Options',
+        'path': 'assets/pdf/LTP-Infographic-HCP-Apr-6-2022.pdf',
+        'thumbnailColor': Colors.blue.shade100,
+        'icon': 'calendar-check',
+      },
+      {
+        'id': 'proact-focus',
+        'title': 'Hemophilia & Blood Donor Month',
+        'description':
+            'ProACT focus on hemophilia awareness and blood donation importance',
+        'type': 'pdf',
+        'category': 'Awareness & Support',
+        'path':
+            'assets/pdf/proact-focus-on-hemophilia-and-blood-donor-month-infographic.pdf',
+        'thumbnailColor': Colors.green.shade100,
+        'icon': 'heart',
+      },
+      {
+        'id': 'what-is-haemophilia',
+        'title': 'What is Haemophilia? - Visual Guide',
+        'description':
+            'Easy-to-understand visual guide explaining the basics of haemophilia',
+        'type': 'pdf',
+        'category': 'Understanding Hemophilia',
+        'path': 'assets/pdf/what-is-haemophilia-infographic.pdf',
+        'thumbnailColor': Colors.purple.shade100,
+        'icon': 'question-circle',
+      },
+      {
+        'id': 'common-symptoms',
+        'title': 'Most Common Symptoms of Hemophilia',
+        'description':
+            'Visual reference guide showing the most frequently experienced hemophilia symptoms',
+        'type': 'image',
+        'category': 'Symptoms & Recognition',
+        'path': 'assets/pdf/MOST-COMMON-SYMPTOMS-OF-HEMOPHILIA-533x800.webp',
+        'thumbnailColor': Colors.orange.shade100,
+        'icon': 'exclamation-triangle',
+      },
+      {
+        'id': 'rice-method',
+        'title': 'RICE Method for Bleeding Episodes',
+        'description':
+            'Step-by-step visual guide for the RICE method (Rest, Ice, Compression, Elevation)',
+        'type': 'image',
+        'category': 'Emergency Management',
+        'path':
+            'assets/pdf/what-is-rice-190446_FINAL-5bc5fcebc9e77c005135258d.webp',
+        'thumbnailColor': Colors.teal.shade100,
+        'icon': 'first-aid',
+      },
+      {
+        'id': 'ai-guidance-screenshot',
+        'title': 'H.E.M.O Emergency Guidance Example',
+        'description':
+            'Example of H.E.M.O emergency guidance for bleeding episodes',
+        'type': 'image',
+        'category': 'App Features',
+        'path': 'assets/pdf/ChatGPT Image Oct 14, 2025, 11_10_35 PM.png',
+        'thumbnailColor': Colors.indigo.shade100,
+        'icon': 'robot',
+      },
+    ];
+  }
+
+  // Get infographic resources by category
+  static List<Map<String, dynamic>> getInfographicsByCategory(String category) {
+    return getInfographicResources()
+        .where((resource) => resource['category'] == category)
+        .toList();
+  }
+
+  // Get all available infographic categories
+  static List<String> getInfographicCategories() {
+    final resources = getInfographicResources();
+    final categories =
+        resources.map((r) => r['category'] as String).toSet().toList();
+    categories.sort();
+    return categories;
+  }
 }

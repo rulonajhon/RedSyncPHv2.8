@@ -232,8 +232,9 @@ class _CreateAccPageState extends State<CreateAccPage> {
 
     // Navigate to appropriate screen and clear navigation stack
     if (role == 'medical') {
+      // Redirect medical professionals to verification form instead of main dashboard
       Navigator.pushNamedAndRemoveUntil(
-          context, '/healthcare_main', (route) => false);
+          context, '/medical_info_settings', (route) => false);
     } else if (role == 'caregiver') {
       Navigator.pushNamedAndRemoveUntil(
           context,

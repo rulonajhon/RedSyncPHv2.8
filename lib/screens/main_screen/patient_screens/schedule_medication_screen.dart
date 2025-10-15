@@ -405,9 +405,9 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        _frequency == 'Once' ? 'Medication Date' : 'Medication Schedule',
-                        style: const TextStyle(
+                      const Text(
+                        'Medication Schedule',
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
                           color: Colors.black87,
@@ -415,7 +415,7 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _frequency == 'Once' ? 'Tap to set date' : 'Tap to set dates',
+                        'Tap to set dates',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.blue.shade600,
@@ -435,191 +435,145 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
 
             const SizedBox(height: 16),
 
-            // Date Display Section - Different layout for "Once"
-            if (_frequency == 'Once') ...[
-              // Single Date Display for "Once" frequency
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+            // Date Display Section
+            Row(
+              children: [
+                // Start Date
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.event_available,
-                          color: Colors.blueAccent,
-                          size: 20,
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.play_arrow,
+                              color: Colors.green,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Start Date',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(height: 6),
                         Text(
-                          'Medication Date',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.blue.shade700,
-                            fontWeight: FontWeight.w600,
+                          '${_startDate.day}/${_startDate.month}/${_startDate.year}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${_startDate.day}/${_startDate.month}/${_startDate.year}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ] else ...[
-              // Range Display for other frequencies
-              Row(
-                children: [
-                  // Start Date
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green.shade200),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.play_arrow,
-                                color: Colors.green,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Start Date',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.green.shade700,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '${_startDate.day}/${_startDate.month}/${_startDate.year}',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+
+                const SizedBox(width: 12),
+
+                // Arrow indicator
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    shape: BoxShape.circle,
                   ),
+                  child: const Icon(
+                    Icons.arrow_forward,
+                    color: Colors.blueAccent,
+                    size: 16,
+                  ),
+                ),
 
-                  const SizedBox(width: 12),
+                const SizedBox(width: 12),
 
-                  // Arrow indicator
-                  Container(
-                    padding: const EdgeInsets.all(6),
+                // End Date
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      shape: BoxShape.circle,
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
                     ),
-                    child: const Icon(
-                      Icons.arrow_forward,
-                      color: Colors.blueAccent,
-                      size: 16,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.stop_circle,
+                              color: Colors.red,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'End Date',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.red.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${_endDate.day}/${_endDate.month}/${_endDate.year}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                ),
+              ],
+            ),
 
-                  const SizedBox(width: 12),
+            const SizedBox(height: 12),
 
-                  // End Date
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.stop_circle,
-                                color: Colors.red,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'End Date',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.red.shade700,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '${_endDate.day}/${_endDate.month}/${_endDate.year}',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
-                      ),
+            // Duration Display
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.timeline,
+                      color: Colors.blueAccent, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${_endDate.difference(_startDate).inDays + 1} day${_endDate.difference(_startDate).inDays != 0 ? 's' : ''} of treatment',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue.shade700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 12),
-
-              // Duration Display (only for non-"Once" frequencies)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.timeline,
-                        color: Colors.blueAccent, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${_endDate.difference(_startDate).inDays + 1} day${_endDate.difference(_startDate).inDays != 0 ? 's' : ''} of treatment',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.blue.shade700,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ],
         ),
       ),
@@ -663,27 +617,23 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  _frequency == 'Once' ? 'Select Medication Date' : 'Select Medication Dates',
-                                  style: const TextStyle(
+                                const Text(
+                                  'Select Medication Dates',
+                                  style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black87,
                                   ),
                                 ),
                                 Text(
-                                  _frequency == 'Once' 
-                                      ? 'Tap to select the date for one-time medication'
-                                      : (_isSelectingEndDate
-                                          ? 'Tap to select end date'
-                                          : 'Tap to select start date'),
+                                  _isSelectingEndDate
+                                      ? 'Tap to select end date'
+                                      : 'Tap to select start date',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: _frequency == 'Once' 
-                                        ? Colors.blueAccent
-                                        : (_isSelectingEndDate
-                                            ? Colors.red.shade600
-                                            : Colors.green.shade600),
+                                    color: _isSelectingEndDate
+                                        ? Colors.red.shade600
+                                        : Colors.green.shade600,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -701,157 +651,106 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Date Selection - Different UI for "Once" vs range selection
-                      if (_frequency == 'Once') ...[
-                        // Single date display for "Once"
-                        Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.blue.shade200),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 16,
-                              horizontal: 20,
-                            ),
-                            child: Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(
-                                      Icons.event_available,
-                                      color: Colors.blueAccent,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Selected Date',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.blue.shade700,
-                                        fontWeight: FontWeight.w600,
+                      // Date Selection Tabs (like flight booking)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setDialogState(
+                                  () => _isSelectingEndDate = false,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                    horizontal: 16,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: !_isSelectingEndDate
+                                        ? Colors.green
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        'Start Date',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: !_isSelectingEndDate
+                                              ? Colors.white
+                                              : Colors.grey.shade600,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '${tempStartDate.day}/${tempStartDate.month}/${tempStartDate.year}',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${tempStartDate.day}/${tempStartDate.month}/${tempStartDate.year}',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: !_isSelectingEndDate
+                                              ? Colors.white
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                      ] else ...[
-                        // Date Selection Tabs (like flight booking) for range selection
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => setDialogState(
-                                    () => _isSelectingEndDate = false,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setDialogState(
+                                  () => _isSelectingEndDate = true,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                    horizontal: 16,
                                   ),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                      horizontal: 16,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: !_isSelectingEndDate
-                                          ? Colors.green
-                                          : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        Text(
-                                          'Start Date',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: !_isSelectingEndDate
-                                                ? Colors.white
-                                                : Colors.grey.shade600,
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                  decoration: BoxDecoration(
+                                    color: _isSelectingEndDate
+                                        ? Colors.red
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        'End Date',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: _isSelectingEndDate
+                                              ? Colors.white
+                                              : Colors.grey.shade600,
+                                          fontWeight: FontWeight.w600,
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${tempStartDate.day}/${tempStartDate.month}/${tempStartDate.year}',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: !_isSelectingEndDate
-                                                ? Colors.white
-                                                : Colors.black87,
-                                          ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${tempEndDate.day}/${tempEndDate.month}/${tempEndDate.year}',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: _isSelectingEndDate
+                                              ? Colors.white
+                                              : Colors.black87,
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => setDialogState(
-                                    () => _isSelectingEndDate = true,
-                                  ),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                      horizontal: 16,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _isSelectingEndDate
-                                          ? Colors.red
-                                          : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        Text(
-                                          'End Date',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: _isSelectingEndDate
-                                                ? Colors.white
-                                                : Colors.grey.shade600,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${tempEndDate.day}/${tempEndDate.month}/${tempEndDate.year}',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: _isSelectingEndDate
-                                                ? Colors.white
-                                                : Colors.black87,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
 
                       const SizedBox(height: 16),
 
@@ -859,11 +758,9 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
                       Container(
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: _frequency == 'Once' 
-                                ? Colors.blueAccent
-                                : (_isSelectingEndDate
-                                    ? Colors.red.shade300
-                                    : Colors.green.shade300),
+                            color: _isSelectingEndDate
+                                ? Colors.red.shade300
+                                : Colors.green.shade300,
                             width: 2,
                           ),
                           borderRadius: BorderRadius.circular(12),
@@ -874,31 +771,24 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
                           _isSelectingEndDate,
                           (DateTime date) {
                             setDialogState(() {
-                              if (_frequency == 'Once') {
-                                // For "Once" frequency, just set the single date
-                                tempStartDate = date;
-                                tempEndDate = date; // Set end date same as start date
-                              } else {
-                                // For other frequencies, handle range selection
-                                if (_isSelectingEndDate) {
-                                  tempEndDate = date;
-                                  // Auto-switch to start date if user hasn't set it properly
-                                  if (tempEndDate.isBefore(tempStartDate)) {
-                                    tempStartDate = tempEndDate.subtract(
-                                      const Duration(days: 1),
-                                    );
-                                  }
-                                } else {
-                                  tempStartDate = date;
-                                  // Auto-adjust end date if it's before start date
-                                  if (tempEndDate.isBefore(tempStartDate)) {
-                                    tempEndDate = tempStartDate.add(
-                                      const Duration(days: 7),
-                                    );
-                                  }
-                                  // Auto-switch to end date selection after selecting start date
-                                  _isSelectingEndDate = true;
+                              if (_isSelectingEndDate) {
+                                tempEndDate = date;
+                                // Auto-switch to start date if user hasn't set it properly
+                                if (tempEndDate.isBefore(tempStartDate)) {
+                                  tempStartDate = tempEndDate.subtract(
+                                    const Duration(days: 1),
+                                  );
                                 }
+                              } else {
+                                tempStartDate = date;
+                                // Auto-adjust end date if it's before start date
+                                if (tempEndDate.isBefore(tempStartDate)) {
+                                  tempEndDate = tempStartDate.add(
+                                    const Duration(days: 7),
+                                  );
+                                }
+                                // Auto-switch to end date selection after selecting start date
+                                _isSelectingEndDate = true;
                               }
                             });
                           },
@@ -907,36 +797,34 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
 
                       const SizedBox(height: 16),
 
-                      // Duration Display (only show for non-"Once" frequencies)
-                      if (_frequency != 'Once') ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.blue.shade200),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.timeline,
-                                color: Colors.blueAccent,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${tempEndDate.difference(tempStartDate).inDays + 1} day${tempEndDate.difference(tempStartDate).inDays != 0 ? 's' : ''} of treatment',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.blue.shade700,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
+                      // Duration Display
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
                         ),
-                      ],
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.timeline,
+                              color: Colors.blueAccent,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${tempEndDate.difference(tempStartDate).inDays + 1} day${tempEndDate.difference(tempStartDate).inDays != 0 ? 's' : ''} of treatment',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
 
                       const SizedBox(height: 20),
 
@@ -980,9 +868,9 @@ class _ScheduleMedicationScreenState extends State<ScheduleMedicationScreen> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
-                              child: Text(
-                                _frequency == 'Once' ? 'Confirm Date' : 'Confirm Dates',
-                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              child: const Text(
+                                'Confirm Dates',
+                                style: TextStyle(fontWeight: FontWeight.w600),
                               ),
                             ),
                           ),

@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../services/directions_service.dart';
 import '../../../utils/connectivity_helper.dart';
 
@@ -22,6 +25,7 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
   bool _hasMapError = false;
   String? _mapErrorMessage;
   bool _isCreatingRoute = false;
+  bool _showTodayOnly = true; // Toggle for showing today's clinics only
 
   final Set<Polyline> _polylines = {};
   Map<String, dynamic>? _selectedLocation;
@@ -40,6 +44,7 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
       'lng': '125.613161',
       'contact': '09099665139',
       'schedule': 'Wed & Fri 1-6 PM',
+      'availableDays': ['Wednesday', 'Friday'],
       'distance': null,
       'distanceValue': double.infinity,
     },
@@ -52,6 +57,15 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
       'lng': '125.614739',
       'contact': 'Call for info',
       'schedule': 'By appointment',
+      'availableDays': [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday'
+      ],
       'distance': null,
       'distanceValue': double.infinity,
     },
@@ -63,6 +77,224 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
       'lng': '125.614977',
       'contact': '09924722148',
       'schedule': 'Mon, Thu & Fri 10 AM-1 PM',
+      'availableDays': ['Monday', 'Thursday', 'Friday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    // New Hematologists from SeriousMD
+    {
+      'name': 'Dr. Anne Kristine Quero',
+      'type': 'Adult Hematologist',
+      'address': 'San Juan De Dios Hospital, 2772 Roxas Boulevard, Pasay City',
+      'lat': '14.5378',
+      'lng': '120.9897',
+      'contact': '(02)8831-9731 ext 1246',
+      'schedule': 'Tue 9 AM-12 PM, Thu 2-5 PM',
+      'availableDays': ['Tuesday', 'Thursday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Anne Kristine Quero',
+      'type': 'Adult Hematologist',
+      'address': 'MyHealth Clinic, 3rd floor Robinsons Place Ermita',
+      'lat': '14.5799',
+      'lng': '120.9842',
+      'contact': '09165868535',
+      'schedule': 'Wed 2-5 PM',
+      'availableDays': ['Wednesday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Anne Kristine Quero',
+      'type': 'Adult Hematologist',
+      'address': 'Healthway Clinic, 8 Adriatico Manila',
+      'lat': '14.5799',
+      'lng': '120.9842',
+      'contact': '09178479722',
+      'schedule': 'Mon 4-6 PM, Fri 2-4 PM',
+      'availableDays': ['Monday', 'Friday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Anne Kristine Quero',
+      'type': 'Adult Hematologist',
+      'address': 'Healthway Cancer Care Hospital, South Union Dr, Arca South',
+      'lat': '14.4103',
+      'lng': '121.0431',
+      'contact': '(02)7777-4673',
+      'schedule': 'Wed & Fri 10 AM-12 PM',
+      'availableDays': ['Wednesday', 'Friday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Deonne Thaddeus Gauiran',
+      'type': 'Adult Hematologist',
+      'address':
+          'UP-PGH Faculty Medical Arts Building, Taft Ave., Ermita, Manila',
+      'lat': '14.5799',
+      'lng': '120.9842',
+      'contact': 'Book via SeriousMD',
+      'schedule': 'Tue 1-5 PM, Fri 9 AM-12 PM',
+      'availableDays': ['Tuesday', 'Friday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Deonne Thaddeus Gauiran',
+      'type': 'Adult Hematologist',
+      'address': 'Healthway Cancer Care Hospital, South Union Dr, Arca South',
+      'lat': '14.4103',
+      'lng': '121.0431',
+      'contact': 'Book via SeriousMD',
+      'schedule': 'Wed 3:30-5:30 PM',
+      'availableDays': ['Wednesday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Deonne Thaddeus Gauiran',
+      'type': 'Adult Hematologist',
+      'address': 'San Juan De Dios Hospital, 2772 Roxas Boulevard, Pasay City',
+      'lat': '14.5378',
+      'lng': '120.9897',
+      'contact': 'Book via SeriousMD',
+      'schedule': 'Mon 1:30-4 PM',
+      'availableDays': ['Monday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Kristian Dorell Masacupan',
+      'type': 'Pediatric Hematologist',
+      'address': 'Davao Doctors Hospital, 118 E, Quirino Avenue, Davao City',
+      'lat': '7.0731',
+      'lng': '125.6128',
+      'contact': 'Book via SeriousMD',
+      'schedule': 'Thu 10 AM-12 PM',
+      'availableDays': ['Thursday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Nemuel Valmoria',
+      'type': 'Adult Hematologist',
+      'address':
+          'UCMed Medical Arts Building Suite 218, Ouano Avenue, Subangdaku, Mandaue City',
+      'lat': '10.3458',
+      'lng': '123.9486',
+      'contact': 'Book via SeriousMD',
+      'schedule': 'Tue & Thu 8-10 AM',
+      'availableDays': ['Tuesday', 'Thursday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Nemuel Valmoria',
+      'type': 'Adult Hematologist',
+      'address': 'MDH Medical Arts Building Room 204, Basak, Lapu-Lapu City',
+      'lat': '10.3103',
+      'lng': '123.9494',
+      'contact': 'Book via SeriousMD',
+      'schedule': 'Mon & Fri 9-11 AM',
+      'availableDays': ['Monday', 'Friday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Jose Antonio S. Quitevis',
+      'type': 'Hematology/Oncology',
+      'address': 'Cebu Doctors\' Group, Rm. 215 - MAB 2, Cebu City',
+      'lat': '10.3157',
+      'lng': '123.8854',
+      'contact': '(032)253-5200',
+      'schedule': 'Mon-Sat 10 AM-12 PM, 12-2 PM',
+      'availableDays': [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday'
+      ],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Katherine Benitez',
+      'type': 'Adult Hematologist',
+      'address': 'Perpetual Help Hospital Biñan, National Highway, Biñan City',
+      'lat': '14.3394',
+      'lng': '121.0831',
+      'contact': '0962 770 7354',
+      'schedule': 'Wed 1-3 PM, Fri 9 AM-12 PM',
+      'availableDays': ['Wednesday', 'Friday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Katherine Benitez',
+      'type': 'Adult Hematologist',
+      'address':
+          'The Medical City-South Luzon, Greenfield City, Brgy. Don Jose, Santa Rosa City',
+      'lat': '14.3119',
+      'lng': '121.1114',
+      'contact': '0906 780 9638',
+      'schedule': 'Tue 11 AM-1 PM',
+      'availableDays': ['Tuesday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Katherine Benitez',
+      'type': 'Adult Hematologist',
+      'address': 'Biñan Doctors Hospital, Inc., Platero, Biñan City',
+      'lat': '14.3394',
+      'lng': '121.0831',
+      'contact': '0961 000 6594',
+      'schedule': 'Wed 9:30-11:30 AM',
+      'availableDays': ['Wednesday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Reynaldo Espinoza',
+      'type': 'Adult Hematologist',
+      'address': 'Nazareth General Hospital, Inc., 203 Perez St., Dagupan City',
+      'lat': '15.9759',
+      'lng': '120.3372',
+      'contact': 'Book via SeriousMD',
+      'schedule': 'Wed 9 AM-12 PM',
+      'availableDays': ['Wednesday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Reynaldo Espinoza',
+      'type': 'Adult Hematologist',
+      'address':
+          'The Medical City-Pangasinan, Nable Street, Pantal, Dagupan City',
+      'lat': '15.9759',
+      'lng': '120.3372',
+      'contact': 'Book via SeriousMD',
+      'schedule': 'Mon 2-4 PM',
+      'availableDays': ['Monday'],
+      'distance': null,
+      'distanceValue': double.infinity,
+    },
+    {
+      'name': 'Dr. Reynaldo Espinoza',
+      'type': 'Adult Hematologist',
+      'address':
+          'Blessed Family Doctors General Hospital, Ilang, San Carlos City',
+      'lat': '15.9321',
+      'lng': '120.3374',
+      'contact': 'Book via SeriousMD',
+      'schedule': 'Thu 1-3 PM',
+      'availableDays': ['Thursday'],
       'distance': null,
       'distanceValue': double.infinity,
     },
@@ -92,6 +324,27 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
       'distance': null,
       'distanceValue': double.infinity,
     },
+    {
+      'name': 'Kris Santonil - GB Distributor',
+      'type': 'Online Drug Outlet',
+      'address': 'Visayas - Nationwide online delivery available',
+      'lat': null,
+      'lng': null,
+      'contact': '09336713883',
+      'phone': '09336713883',
+      'schedule': 'Online 24/7 - Call for orders',
+      'distance': 'Online',
+      'distanceValue': 0,
+      'online': true,
+      'viber': '+639336713883',
+      'services': [
+        'Phone Orders',
+        'Viber Orders',
+        'Free Messages',
+        'Online Purchase'
+      ],
+      'noLocation': true,
+    },
   ];
 
   Set<Marker> _markers = {};
@@ -100,6 +353,21 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
   void initState() {
     super.initState();
     _safeInitialization();
+
+    // Add a periodic timer to refresh clinic availability every minute
+    // This ensures that if the day changes while the app is open, the clinics update
+    Timer.periodic(const Duration(minutes: 1), (timer) {
+      if (mounted) {
+        final newDay = _getCurrentDay();
+        print('⏰ Periodic check: Current day is $newDay');
+        setState(() {
+          // This will trigger a rebuild and re-filter the clinics
+        });
+        _updateMarkers();
+      } else {
+        timer.cancel();
+      }
+    });
   }
 
   @override
@@ -680,9 +948,52 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
     }
   }
 
-  // Get current data list based on selected type
+  // Get current day of the week
+  String _getCurrentDay() {
+    final now = DateTime.now();
+    final weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+    return weekdays[now.weekday - 1];
+  }
+
+  // Filter clinics by current day availability
+  List<Map<String, dynamic>> _getAvailableClinics() {
+    final currentDay = _getCurrentDay();
+    print('🗓️ Current day: $currentDay');
+
+    final filteredClinics = clinics.where((clinic) {
+      // If clinic has availableDays, check if current day is included
+      if (clinic['availableDays'] != null && clinic['availableDays'] is List) {
+        final availableDays = clinic['availableDays'] as List<String>;
+        final isAvailable = availableDays.contains(currentDay);
+        print(
+            '🏥 ${clinic['name']}: Available on $availableDays -> $isAvailable');
+        return isAvailable;
+      }
+      // If no availableDays specified, assume available all days (for backwards compatibility)
+      print('🏥 ${clinic['name']}: No schedule specified, showing all days');
+      return true;
+    }).toList();
+
+    print(
+        '📊 Filtered ${filteredClinics.length} clinics out of ${clinics.length} total');
+    return filteredClinics;
+  }
+
+  // Get current data list based on selected type and filter mode
   List<Map<String, dynamic>> _getCurrentDataList() {
-    return selectedType == "clinic" ? clinics : drugOutlets;
+    if (selectedType == "clinic") {
+      return _showTodayOnly ? _getAvailableClinics() : clinics;
+    } else {
+      return drugOutlets;
+    }
   }
 
   // Show location details in a bottom sheet
@@ -722,10 +1033,14 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
                   child: Icon(
                     selectedType == "clinic"
                         ? FontAwesomeIcons.userDoctor
-                        : FontAwesomeIcons.pills,
+                        : (location['online'] == true
+                            ? FontAwesomeIcons.globe
+                            : FontAwesomeIcons.pills),
                     color: selectedType == "clinic"
                         ? Colors.redAccent
-                        : Colors.blue,
+                        : (location['online'] == true
+                            ? Colors.green
+                            : Colors.blue),
                     size: 18,
                   ),
                 ),
@@ -778,38 +1093,105 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
             ),
             const SizedBox(height: 16),
             _buildInfoRow(FontAwesomeIcons.locationDot, location['address']),
-            _buildInfoRow(FontAwesomeIcons.phone, location['contact']),
+            _buildCopyableContactRow(
+                FontAwesomeIcons.phone, 'Phone', location['contact']),
+            if (location['viber'] != null)
+              _buildCopyableContactRow(
+                  FontAwesomeIcons.viber, 'Viber', location['viber']),
             _buildInfoRow(FontAwesomeIcons.clock, location['schedule']),
+
+            // Show online services if available
+            if (location['online'] == true && location['services'] != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(
+                    FontAwesomeIcons.globe,
+                    color: Colors.green.shade600,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Online Services Available:',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: (location['services'] as List<String>).map((service) {
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Text(
+                      service,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+
             const SizedBox(height: 20),
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isCreatingRoute
-                        ? null
-                        : () => _createRouteToLocation(location),
-                    icon: _isCreatingRoute
-                        ? SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                  child: location['online'] == true
+                      ? ElevatedButton.icon(
+                          onPressed: () => _makePhoneCall(location['contact']),
+                          icon: const Icon(FontAwesomeIcons.phone, size: 16),
+                          label: const Text('Call Now'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade600,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          )
-                        : const Icon(FontAwesomeIcons.route, size: 16),
-                    label: Text(_isCreatingRoute ? 'Loading...' : 'Show Route'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: selectedType == "clinic"
-                          ? Colors.redAccent
-                          : Colors.blue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        )
+                      : ElevatedButton.icon(
+                          onPressed: _isCreatingRoute
+                              ? null
+                              : () => _createRouteToLocation(location),
+                          icon: _isCreatingRoute
+                              ? SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(FontAwesomeIcons.route, size: 16),
+                          label: Text(
+                              _isCreatingRoute ? 'Loading...' : 'Show Route'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: selectedType == "clinic"
+                                ? Colors.redAccent
+                                : Colors.blue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton.icon(
@@ -849,6 +1231,54 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
                 fontSize: 14,
                 color: Colors.grey.shade700,
                 height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCopyableContactRow(IconData icon, String label, String contact) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 14, color: Colors.grey.shade600),
+          const SizedBox(width: 12),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _copyToClipboard(contact, label),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.blue.shade200, width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        contact,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w500,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      FontAwesomeIcons.copy,
+                      size: 12,
+                      color: Colors.blue.shade600,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1255,61 +1685,131 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
             child: _buildMapWidget(),
           ),
 
-          // Top Status Bar
+          // Top Status Area
           Positioned(
             top: 16,
             left: 16,
             right: 16,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    selectedType == "clinic"
-                        ? FontAwesomeIcons.userDoctor
-                        : FontAwesomeIcons.pills,
-                    color: selectedType == "clinic"
-                        ? Colors.redAccent
-                        : Colors.blue,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _getCurrentDataList().isNotEmpty
-                          ? '${_getCurrentDataList().length} ${selectedType == "clinic" ? "treatment centers" : "drug outlets"} found'
-                          : 'Loading locations...',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Status bar - white background only for content width
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            selectedType == "clinic"
+                                ? FontAwesomeIcons.userDoctor
+                                : FontAwesomeIcons.pills,
+                            color: selectedType == "clinic"
+                                ? Colors.redAccent
+                                : Colors.blue,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _getCurrentDataList().isNotEmpty
+                                ? '${_getCurrentDataList().length} ${selectedType == "clinic" ? "treatment centers" : "drug outlets"} found'
+                                : 'Loading locations...',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          if (_isLoadingLocation) ...[
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: selectedType == "clinic"
+                                    ? Colors.redAccent
+                                    : Colors.blue,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                  ),
-                  if (_isLoadingLocation)
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: selectedType == "clinic"
-                            ? Colors.redAccent
-                            : Colors.blue,
-                      ),
+                  ],
+                ),
+                // Day filter toggle for clinics
+                if (selectedType == "clinic")
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: _toggleTodayFilter,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _showTodayOnly
+                                  ? Colors.redAccent.withOpacity(0.1)
+                                  : Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color: _showTodayOnly
+                                      ? Colors.redAccent.withOpacity(0.3)
+                                      : Colors.grey.shade300,
+                                  width: 1),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Open Today',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: _showTodayOnly
+                                        ? Colors.redAccent
+                                        : Colors.grey.shade600,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                AnimatedRotation(
+                                  turns: _showTodayOnly ? 0 : 0.5,
+                                  duration: const Duration(milliseconds: 200),
+                                  child: Icon(
+                                    _showTodayOnly
+                                        ? FontAwesomeIcons.toggleOn
+                                        : FontAwesomeIcons.toggleOff,
+                                    size: 16,
+                                    color: _showTodayOnly
+                                        ? Colors.redAccent
+                                        : Colors.grey.shade400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Spacer to push other content to the right if needed
+                        const Spacer(),
+                      ],
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
 
@@ -1579,6 +2079,16 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
     _updateMarkers();
   }
 
+  void _toggleTodayFilter() {
+    setState(() {
+      _showTodayOnly = !_showTodayOnly;
+      _polylines.clear();
+      _selectedLocation = null;
+      _currentRoute = null;
+    });
+    _updateMarkers();
+  }
+
   void _showLocationsList() {
     final dataList = _getCurrentDataList();
 
@@ -1689,15 +2199,20 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
                 decoration: BoxDecoration(
                   color: selectedType == "clinic"
                       ? Colors.redAccent.withOpacity(0.1)
-                      : Colors.blue.withOpacity(0.1),
+                      : (item['online'] == true
+                          ? Colors.green.withOpacity(0.1)
+                          : Colors.blue.withOpacity(0.1)),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   selectedType == "clinic"
                       ? FontAwesomeIcons.userDoctor
-                      : FontAwesomeIcons.pills,
-                  color:
-                      selectedType == "clinic" ? Colors.redAccent : Colors.blue,
+                      : (item['online'] == true
+                          ? FontAwesomeIcons.globe
+                          : FontAwesomeIcons.pills),
+                  color: selectedType == "clinic"
+                      ? Colors.redAccent
+                      : (item['online'] == true ? Colors.green : Colors.blue),
                   size: 16,
                 ),
               ),
@@ -1720,7 +2235,9 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
                         fontSize: 13,
                         color: selectedType == "clinic"
                             ? Colors.redAccent
-                            : Colors.blue,
+                            : (item['online'] == true
+                                ? Colors.green
+                                : Colors.blue),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1755,53 +2272,104 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
               height: 1.3,
             ),
           ),
+          // Show hint for online outlets
+          if (item['online'] == true && item['phone'] != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Tap for info • Long press to call • Tap numbers to copy',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.blue.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _isCreatingRoute
-                      ? null
-                      : () {
-                          Navigator.pop(context);
-                          _createRouteToLocation(item);
-                        },
-                  icon: _isCreatingRoute
-                      ? SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(FontAwesomeIcons.route, size: 14),
-                  label: Text(_isCreatingRoute ? 'Loading...' : 'Route'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: selectedType == "clinic"
-                        ? Colors.redAccent
-                        : Colors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+              // Show route button only for non-online outlets
+              if (item['online'] != true && item['noLocation'] != true) ...[
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isCreatingRoute
+                        ? null
+                        : () {
+                            Navigator.pop(context);
+                            _createRouteToLocation(item);
+                          },
+                    icon: _isCreatingRoute
+                        ? SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(FontAwesomeIcons.route, size: 14),
+                    label: Text(_isCreatingRoute ? 'Loading...' : 'Route'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: selectedType == "clinic"
+                          ? Colors.redAccent
+                          : Colors.blue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: () => _showLocationDetails(item),
-                icon: const Icon(FontAwesomeIcons.circleInfo, size: 14),
-                label: const Text('Info'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey.shade200,
-                  foregroundColor: Colors.grey.shade700,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                const SizedBox(width: 8),
+              ],
+
+              // Info/Call button - expanded when no route button
+              Expanded(
+                flex: (item['online'] == true || item['noLocation'] == true)
+                    ? 1
+                    : 0,
+                child: GestureDetector(
+                  onLongPress: () {
+                    // Long press for calling (online outlets only)
+                    if (item['online'] == true && item['phone'] != null) {
+                      _makePhoneCall(item['phone']);
+                      // Show helpful message
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Calling outlet...'),
+                          duration: const Duration(seconds: 2),
+                          backgroundColor: Colors.green.shade600,
+                        ),
+                      );
+                    }
+                  },
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // Primary action is always to show details/info
+                      _showLocationDetails(item);
+                    },
+                    icon: const Icon(FontAwesomeIcons.circleInfo, size: 16),
+                    label: const Text('Info', style: TextStyle(fontSize: 15)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          (item['online'] == true || item['noLocation'] == true)
+                              ? Colors.blue.shade50
+                              : Colors.grey.shade200,
+                      foregroundColor:
+                          (item['online'] == true || item['noLocation'] == true)
+                              ? Colors.blue
+                              : (item['online'] == true ||
+                                      item['noLocation'] == true)
+                                  ? Colors.blue
+                                  : Colors.grey.shade700,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12, horizontal: 16),
+                    ),
                   ),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                 ),
               ),
             ],
@@ -1809,5 +2377,66 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
         ],
       ),
     );
+  }
+
+  // Make phone call to the outlet
+  void _makePhoneCall(String phoneNumber) async {
+    try {
+      final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
+      if (await canLaunchUrl(phoneUri)) {
+        await launchUrl(phoneUri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Cannot make call to $phoneNumber'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error making call: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Copy text to clipboard with feedback
+  void _copyToClipboard(String text, String label) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$label copied: $text'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to copy $label'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
