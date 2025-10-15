@@ -374,17 +374,6 @@ class _LogBleedState extends State<LogBleed> {
         ),
         child: Column(
           children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-
             // Header
             Container(
               width: double.infinity,

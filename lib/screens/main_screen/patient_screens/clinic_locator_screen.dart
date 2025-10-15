@@ -1417,17 +1417,61 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
   }
 
   Future<TravelMode?> _showTravelModeDialog() async {
-    return showDialog<TravelMode>(
+    return showModalBottomSheet<TravelMode>(
       context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
+      ),
+      isScrollControlled: true,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text(
-            'Select Travel Mode',
-            style: TextStyle(fontWeight: FontWeight.bold),
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(20),
+            ),
           ),
-          content: Column(
+          child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Title
+              const Text(
+                'Select Travel Mode',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Choose how you want to travel to your destination',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Travel mode options
               _buildTravelModeOption(
                 TravelMode.driving,
                 FontAwesomeIcons.car,
@@ -1451,14 +1495,35 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
                 'Two-wheeler route',
                 Colors.orange,
               ),
+              const SizedBox(height: 24),
+
+              // Cancel button
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: Colors.grey.shade100,
+                    foregroundColor: Colors.grey.shade700,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Add bottom padding for safe area
+              SizedBox(height: MediaQuery.of(context).padding.bottom),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-          ],
         );
       },
     );
@@ -1638,7 +1703,7 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
-          'Access Care Locator',
+          'Access Care',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
         backgroundColor: Colors.white,
@@ -1648,30 +1713,115 @@ class _ClinicLocatorScreenState extends State<ClinicLocatorScreen> {
           Container(
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
-              color: selectedType == "clinic"
-                  ? Colors.redAccent.withOpacity(0.1)
-                  : Colors.blue.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
             ),
-            child: TextButton.icon(
-              onPressed: _toggleLocationType,
-              icon: Icon(
-                selectedType == "clinic"
-                    ? FontAwesomeIcons.userDoctor
-                    : FontAwesomeIcons.pills,
-                size: 14,
-                color:
-                    selectedType == "clinic" ? Colors.redAccent : Colors.blue,
-              ),
-              label: Text(
-                selectedType == "clinic" ? 'Clinics' : 'Outlets',
-                style: TextStyle(
-                  color:
-                      selectedType == "clinic" ? Colors.redAccent : Colors.blue,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Clinics Button
+                GestureDetector(
+                  onTap: () {
+                    if (selectedType != "clinic") {
+                      _toggleLocationType();
+                    }
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: selectedType == "clinic"
+                          ? Colors.redAccent
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: selectedType == "clinic"
+                          ? [
+                              BoxShadow(
+                                color: Colors.redAccent.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          FontAwesomeIcons.userDoctor,
+                          size: 14,
+                          color: selectedType == "clinic"
+                              ? Colors.white
+                              : Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Clinics',
+                          style: TextStyle(
+                            color: selectedType == "clinic"
+                                ? Colors.white
+                                : Colors.grey.shade600,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+
+                // Outlets Button
+                GestureDetector(
+                  onTap: () {
+                    if (selectedType != "drug") {
+                      _toggleLocationType();
+                    }
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: selectedType == "drug"
+                          ? Colors.blue
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: selectedType == "drug"
+                          ? [
+                              BoxShadow(
+                                color: Colors.blue.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          FontAwesomeIcons.pills,
+                          size: 14,
+                          color: selectedType == "drug"
+                              ? Colors.white
+                              : Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Outlets',
+                          style: TextStyle(
+                            color: selectedType == "drug"
+                                ? Colors.white
+                                : Colors.grey.shade600,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

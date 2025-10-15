@@ -88,73 +88,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    // Notification tap handling is now managed via the NotificationService singleton and plugin callbacks.
-  }
-
-  void _handleNotificationTap(String payload) {
-    print('Handling notification tap with payload: $payload');
-
-    // Parse payload and navigate accordingly
-    try {
-      if (payload.startsWith('post_')) {
-        // Handle post notifications (like, comment, share)
-        final parts = payload.split(':');
-        if (parts.length >= 2) {
-          final postId = parts[1];
-          _navigateToPost(postId);
-        }
-      } else if (payload.startsWith('message:')) {
-        // Handle message notifications
-        final parts = payload.split(':');
-        if (parts.length >= 3) {
-          final senderId = parts[1];
-          final conversationId = parts[2];
-          _navigateToMessage(senderId, conversationId);
-        }
-      } else if (payload.startsWith('medication_reminder:')) {
-        // Handle medication reminder notifications
-        final parts = payload.split(':');
-        if (parts.length >= 2) {
-          final scheduleId = parts[1];
-          _navigateToMedication(scheduleId);
-        }
-      }
-    } catch (e) {
-      print('Error parsing notification payload: $e');
-    }
-  }
-
-  void _navigateToPost(String postId) {
-    print('Navigating to post: $postId');
-
-    // Navigate to community screen with specific post
-    navigatorKey.currentState?.pushNamed(
-      '/community',
-      arguments: {'openPostId': postId},
-    );
-  }
-
-  void _navigateToMessage(String senderId, String conversationId) {
-    print('Navigating to message: $senderId, $conversationId');
-
-    // Navigate to messages screen with specific conversation
-    navigatorKey.currentState?.pushNamed(
-      '/messages',
-      arguments: {
-        'openChatWithUserId': senderId,
-        'conversationId': conversationId,
-      },
-    );
-  }
-
-  void _navigateToMedication(String scheduleId) {
-    print('Navigating to medication: $scheduleId');
-
-    // Navigate to medication/dashboard screen
-    navigatorKey.currentState?.pushNamed(
-      '/medication',
-      arguments: {'scheduleId': scheduleId},
-    );
+    // Notification handling is managed by NotificationService
   }
 
   @override
@@ -232,9 +166,29 @@ class _AppInitializerState extends State<AppInitializer> {
         return;
       }
 
-      // Check login status from secure storage
+      // Get login status and user role from secure storage
       final isLoggedIn = await _secureStorage.read(key: 'isLoggedIn');
-      final userRole = await _secureStorage.read(key: 'userRole');
+      String? userRole = await _secureStorage.read(key: 'userRole');
+
+      // If user role is missing but we have a valid Firebase user, try to retrieve it
+      if (userRole == null || userRole.isEmpty) {
+        final currentUser = _authService.currentUser;
+        if (currentUser != null) {
+          print('🔄 User role missing, attempting to retrieve from Firestore');
+          try {
+            final firestoreService = FirestoreService();
+            userRole = await firestoreService.getUserRole(currentUser.uid);
+
+            if (userRole != null && userRole.isNotEmpty) {
+              // Save the retrieved role to secure storage
+              await _secureStorage.write(key: 'userRole', value: userRole);
+              print('✅ User role retrieved and saved: $userRole');
+            }
+          } catch (e) {
+            print('❌ Failed to retrieve user role from Firestore: $e');
+          }
+        }
+      }
 
       if (!mounted) return;
 
@@ -247,12 +201,15 @@ class _AppInitializerState extends State<AppInitializer> {
             targetScreen = const MainScreenDisplay();
             break;
           case 'medical':
+          case 'doctor':
+          case 'healthcare_provider':
             targetScreen = const HealthcareMainScreen();
             break;
           case 'admin':
             targetScreen = const AdminDashboard();
             break;
           default:
+            print('⚠️ Unknown user role: $userRole, redirecting to login');
             targetScreen = const AuthenticationLandingScreen();
         }
 
@@ -261,7 +218,8 @@ class _AppInitializerState extends State<AppInitializer> {
           MaterialPageRoute(builder: (context) => targetScreen),
         );
       } else {
-        // User is not logged in, go to homepage
+        // User is not logged in or role is missing, go to login
+        print('🔄 User not logged in or role missing, redirecting to login');
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -270,7 +228,8 @@ class _AppInitializerState extends State<AppInitializer> {
         );
       }
     } catch (e) {
-      // If any error occurs, default to homepage
+      // If any error occurs, default to login
+      print('❌ Error during app initialization: $e');
       if (mounted) {
         Navigator.pushReplacement(
           context,

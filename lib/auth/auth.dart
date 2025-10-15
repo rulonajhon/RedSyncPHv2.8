@@ -55,7 +55,7 @@ class AuthService {
     return userCredential.user;
   }
 
-  // Validate authentication state - NEW METHOD
+  // Validate authentication state - IMPROVED METHOD
   Future<bool> validateAuthState() async {
     try {
       final currentUser = _auth.currentUser;
@@ -69,15 +69,23 @@ class AuthService {
         return false;
       }
 
-      // If Firebase user exists but storage says not logged in, this might be a valid session
-      if (currentUser != null && isLoggedIn != 'true') {
-        print(
-            '⚠️ Auth mismatch detected: Firebase user exists but storage says not logged in');
-        // Don't auto-clear here, might be a legitimate restored session
-        return false;
+      // If Firebase user exists, trust the Firebase session even if storage is inconsistent
+      if (currentUser != null) {
+        // Firebase Auth has automatic persistence, so if there's a user, they're authenticated
+        print('✅ Firebase user session found, authentication valid');
+
+        // If storage is missing, restore it from Firebase user
+        if (isLoggedIn != 'true') {
+          print('🔄 Restoring login state to secure storage');
+          await _secureStorage.write(key: 'isLoggedIn', value: 'true');
+          await _secureStorage.write(key: 'userUid', value: currentUser.uid);
+        }
+
+        return true;
       }
 
-      return currentUser != null && isLoggedIn == 'true';
+      // No Firebase user and no storage flag - user is not authenticated
+      return false;
     } catch (e) {
       print('Error validating auth state: $e');
       return false;

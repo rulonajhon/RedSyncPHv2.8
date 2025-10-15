@@ -7,7 +7,6 @@ import 'package:hemophilia_manager/services/firestore.dart';
 import 'package:hemophilia_manager/screens/main_screen/patient_screens/notifications_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hemophilia_manager/screens/main_screen/patient_screens/community/community_screen.dart';
-import 'package:hemophilia_manager/widgets/offline_indicator.dart';
 import 'package:hemophilia_manager/utils/connectivity_helper.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
@@ -284,10 +283,7 @@ class _MainScreenDisplayState extends State<MainScreenDisplay> {
           ),
           backgroundColor: Colors.white,
           foregroundColor: Colors.redAccent,
-          bottom: const PreferredSize(
-            preferredSize: Size.fromHeight(20),
-            child: OfflineIndicator(),
-          ),
+          // Removed the bottom PreferredSize that was causing the gap
           actions: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -362,9 +358,59 @@ class _MainScreenDisplayState extends State<MainScreenDisplay> {
             ),
           ],
         ),
-        body: _currentIndex == 2 || _currentIndex == 4 || _currentIndex == 5
-            ? Container() // Empty container for chatbot, community, and messages placeholders
-            : _screens[_currentIndex],
+        body: Stack(
+          children: [
+            // Main content
+            _currentIndex == 2 || _currentIndex == 4 || _currentIndex == 5
+                ? Container() // Empty container for chatbot, community, and messages placeholders
+                : _screens[_currentIndex],
+
+            // Offline indicator positioned at the top
+            if (!_isOnline)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade600,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.wifi_off,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'No Internet Connection',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
         floatingActionButton: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
           transitionBuilder: (Widget child, Animation<double> animation) {
